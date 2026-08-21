@@ -1,28 +1,19 @@
-# Jarvis – Teste Matte
+# Jarvis – Teste Matte (Iron Man Edition)
 
-Agente H24 per ristorante + fattoria Teste Matte.
+Agente H24 + interfaccia stile Iron Man.
 
-## Funzionalità
-- Chat interattiva + comandi
-- Collegamento gestionale Supabase (ordini, comande, tavoli)
-- Memoria persistente
-- Solo Groq (veloce)
+## Cosa include
+- Interfaccia glowing con anello JARVIS
+- Voce (TTS + riconoscimento)
+- Wake-word: "Okay Jarvis"
+- Camera e chat
+- Collegamento gestionale Supabase
 
-## Comandi chat
-- `/ordini` – ultimi ordini
-- `/tavoli` – stato tavoli
-- `/comanda T5 NomePiatto 1 15` – invia comanda
-- `/memoria` – mostra memoria
-- `/h24` – avvia loop autonomo
-- oppure prompt libero
+## Uso
+Apri `index.html` oppure il sito deployato.
 
-## Deploy Railway
-1. Carica questi file su GitHub
-2. Railway → New Project → Deploy from GitHub
-3. Avvia
+Di' "Okay Jarvis" e dai comandi.
 
-## Locale
-```bash
-pip install -r requirements.txt
-python jarvis.py
-```
+## Deploy
+- Render / Railway collegato a questo repo
+- Oppure apri index.html in Chrome

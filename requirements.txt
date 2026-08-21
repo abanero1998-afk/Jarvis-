@@ -1,5 +1,1 @@
-anthropic
-groq
-fastapi
-uvicorn[standard]
-pydantic
+groq>=0.9.0

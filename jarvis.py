@@ -3,13 +3,16 @@
 JARVIS - Agente H24 di Teste Matte
 Versione H24 autonoma zero errori umani.
 Punti aggiunti: 2 Memoria avanzata | 3 Webhook/polling | 4 Deploy | 5 Sicurezza | 6 Voce+Design
-"""
 
+Versione web-service: espone un'API HTTP (FastAPI) invece di una chat da terminale,
+così può girare su Render/Railway come servizio pubblico H24.
+"""
 import os
 import time
 import json
 import hashlib
 import logging
+import threading
 import urllib.request
 import urllib.error
 from datetime import datetime
@@ -17,9 +20,6 @@ from typing import Optional, Any, List, Dict
 from collections import deque
 
 # ========== DIPENDENZE ==========
-# pip install anthropic groq
-# Per produzione: pip install chromadb honcho-ai elevenlabs fastapi uvicorn
-
 try:
     from anthropic import Anthropic
 except ImportError:
@@ -30,27 +30,45 @@ try:
 except ImportError:
     Groq = None
 
+from fastapi import FastAPI
+from pydantic import BaseModel
+import uvicorn
+
 # ========== LOGGING STRUTTURATO (punto 5) ==========
+# Path relativo alla cartella del progetto: creata a runtime, funziona sia
+# in locale che su Render/Railway (dove /home/workdir non esiste).
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_PATH = os.path.join(LOG_DIR, "jarvis.log")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[
-        logging.FileHandler("/home/workdir/artifacts/jarvis.log"),
+        logging.FileHandler(LOG_PATH),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger("Jarvis")
 
 # ========== 1. CERVELLO MULTI-MODELLO ==========
-# Solo Groq attivo (chiave inserita direttamente)
+# Chiavi lette da variabili d'ambiente - MAI hardcoded nel codice.
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+
 claude_client = None
-GROQ_API_KEY = "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"
-if Groq:
-    groq_client = Groq(api_key=GROQ_API_KEY)
-    logger.info("Groq attivo (chiave diretta)")
+if Anthropic and ANTHROPIC_API_KEY:
+    claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+    logger.info("Claude attivo")
 else:
-    groq_client = None
-    logger.warning("Libreria groq non installata")
+    logger.warning("Claude non configurato (manca ANTHROPIC_API_KEY o libreria anthropic)")
+
+groq_client = None
+if Groq and GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+    logger.info("Groq attivo")
+else:
+    logger.warning("Groq non configurato (manca GROQ_API_KEY o libreria groq)")
 
 # ========== 2. MEMORIA AVANZATA (vettoriale simulata + persistente) ==========
 class VectorMemory:
@@ -61,10 +79,9 @@ class VectorMemory:
     """
     def __init__(self, project: str = "jarvis_teste_matte"):
         self.project = project
-        self.path = f"/home/workdir/artifacts/{project}_memory.json"
+        self.path = os.path.join(LOG_DIR, f"{project}_memory.json")
         self.data: List[Dict] = []
         self._load()
-        # Seed iniziale
         if not self.data:
             self.ricorda("Il capo si chiama", "Fondatore Teste Matte", tags=["identita"])
             self.ricorda("La fattoria si chiama", "Teste Matte", tags=["identita", "fattoria"])
@@ -84,7 +101,6 @@ class VectorMemory:
             json.dump(self.data, f, ensure_ascii=False, indent=2)
 
     def _pseudo_embedding(self, text: str) -> str:
-        """Simula vettore con hash stabile (in produzione = real embedding)"""
         return hashlib.sha256(text.lower().encode()).hexdigest()[:16]
 
     def ricorda(self, chiave: str, valore: str, tags: Optional[List[str]] = None) -> str:
@@ -102,20 +118,16 @@ class VectorMemory:
         return f"Memoria aggiornata: {chiave}"
 
     def cerca(self, query: str, top_k: int = 5) -> List[Dict]:
-        """Ricerca per similarità (keyword + hash overlap). In produzione: cosine similarity"""
         query_emb = self._pseudo_embedding(query)
         query_words = set(query.lower().split())
         scored = []
         for entry in self.data:
             score = 0
-            # Match hash (simula similarità)
             if entry["embedding"] == query_emb:
                 score += 10
-            # Keyword overlap
             text = f"{entry['chiave']} {entry['valore']}".lower()
             overlap = len(query_words & set(text.split()))
             score += overlap * 2
-            # Tag boost
             for tag in entry.get("tags", []):
                 if tag in query.lower():
                     score += 3
@@ -194,10 +206,9 @@ class Jarvis:
         self.memory = memory
         self.system_prompt = SYSTEM_PROMPT
         self.rate_limiter = RateLimiter(max_calls=40, period_sec=60)
-        self.webhook_queue: List[Dict] = []  # Coda eventi in arrivo (punto 3)
+        self.webhook_queue: List[Dict] = []
 
     def _check_security(self) -> bool:
-        """Verifica secrets e stato sicuro – solo Groq richiesto"""
         if not groq_client:
             logger.warning("Groq non attivo")
             return False
@@ -237,46 +248,39 @@ class Jarvis:
             return f"[Errore Groq: {str(e)[:100]}]"
 
     def think(self, user_input: str, fast: bool = False) -> str:
-        # Inietta contesto memoria rilevante
         contesto = self.memory.cerca(user_input, top_k=3)
         if contesto:
             ctx_text = "\n".join([f"- {c['chiave']}: {c['valore']}" for c in contesto])
             user_input = f"[Contesto memoria]\n{ctx_text}\n\n[Richiesta]\n{user_input}"
         messages = [{"role": "user", "content": user_input}]
-        # Solo Groq attivo
         return self._call_groq(messages)
 
     # ========== TOOLS ==========
     def invia_email(self, destinatario: str, oggetto: str, corpo: str) -> str:
-        """Invia email (stub – collega Gmail API)"""
         log = f"[{datetime.now().isoformat()}] EMAIL → {destinatario} | {oggetto}"
         self.memory.ricorda(f"email_{datetime.now().timestamp()}", log, tags=["email", "comunicazione"])
         logger.info(log)
         return f"Email inviata a {destinatario}"
 
     def invia_whatsapp(self, numero: str, messaggio: str) -> str:
-        """Risponde su WhatsApp Business (stub – collega Twilio/WA API)"""
         log = f"[{datetime.now().isoformat()}] WA → {numero} | {messaggio[:50]}"
         self.memory.ricorda(f"wa_{datetime.now().timestamp()}", log, tags=["whatsapp", "comunicazione"])
         logger.info(log)
         return "Messaggio WA inviato"
 
     def posta_social(self, piattaforma: str, testo: str, immagine: Optional[str] = None) -> str:
-        """Pubblica su IG, TikTok, FB (stub)"""
         log = f"[{datetime.now().isoformat()}] SOCIAL {piattaforma} | {testo[:60]}"
         self.memory.ricorda(f"social_{datetime.now().timestamp()}", log, tags=["social", piattaforma.lower()])
         logger.info(log)
         return f"Post pubblicato su {piattaforma}"
 
     def aggiorna_sito_ristorante(self, sezione: str, contenuto: str) -> str:
-        """Aggiorna menu, eventi, prenotazioni sito WordPress (stub)"""
         log = f"[{datetime.now().isoformat()}] SITO | {sezione}"
         self.memory.ricorda(f"sito_{datetime.now().timestamp()}", log, tags=["sito", "wordpress"])
         logger.info(log)
         return "Sito aggiornato"
 
     def gestisci_calendario(self, azione: str, evento: str, data: str) -> str:
-        """Aggiunge riunioni fattoria, fornitori, eventi ristorante (stub)"""
         log = f"[{datetime.now().isoformat()}] CALENDARIO {azione} | {evento} @ {data}"
         self.memory.ricorda(f"cal_{datetime.now().timestamp()}", log, tags=["calendario", "evento"])
         logger.info(log)
@@ -284,18 +288,13 @@ class Jarvis:
 
     # ========== 6. VOCE + DESIGN ==========
     def hermes_voice(self, testo: str) -> str:
-        """
-        Voce umana. In produzione: ElevenLabs o Hermès Voice TTS.
-        Stub genera path audio fittizio.
-        """
         audio_id = hashlib.md5(testo.encode()).hexdigest()[:8]
-        path = f"/home/workdir/artifacts/voice_{audio_id}.mp3"
+        path = os.path.join(LOG_DIR, f"voice_{audio_id}.mp3")
         self.memory.ricorda(f"voice_{audio_id}", testo[:80], tags=["voce", "tts"])
         logger.info(f"Audio generato: {path}")
         return f"Audio generato → {path} (collega ElevenLabs per reale)"
 
     def claude_design(self, descrizione_ui: str) -> str:
-        """Genera interfaccia Liquid Glass Apple-style"""
         if not claude_client:
             return "[Claude non configurato]"
         prompt = (
@@ -309,7 +308,6 @@ class Jarvis:
 
     # ========== 3. WEBHOOK / POLLING ==========
     def ricevi_webhook(self, source: str, payload: Dict) -> str:
-        """Riceve eventi da email, WA, IG, sito (punto 3)"""
         event = {
             "source": source,
             "payload": payload,
@@ -321,23 +319,20 @@ class Jarvis:
         return f"Evento {source} accodato"
 
     def processa_coda(self) -> List[str]:
-        """Processa eventi in coda in modo autonomo"""
         risultati = []
         while self.webhook_queue:
             event = self.webhook_queue.pop(0)
             source = event["source"]
-            # Decisione autonoma
             decisione = self.think(f"Nuovo evento da {source}: {json.dumps(event['payload'])[:300]}. Cosa fare?", fast=True)
             risultati.append(f"{source}: {decisione[:150]}")
             logger.info(f"Processato {source}")
         return risultati
 
 # ========== GESTIONALE TESTE MATTE (Supabase) ==========
-SUPABASE_URL = "https://qnpdilurpkjsqloznmko.supabase.co"
-SUPABASE_KEY = "sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qnpdilurpkjsqloznmko.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 def _supabase_get(table: str) -> Optional[Dict]:
-    """GET singolo documento main da Supabase"""
     url = f"{SUPABASE_URL}/rest/v1/{table}?id=eq.main&select=*"
     req = urllib.request.Request(url, headers={
         "apikey": SUPABASE_KEY,
@@ -353,7 +348,6 @@ def _supabase_get(table: str) -> Optional[Dict]:
         return None
 
 def _supabase_patch(table: str, new_data: list) -> bool:
-    """PATCH aggiorna il campo data del documento main"""
     url = f"{SUPABASE_URL}/rest/v1/{table}?id=eq.main"
     body = json.dumps({"data": new_data}).encode()
     req = urllib.request.Request(url, data=body, method="PATCH", headers={
@@ -369,9 +363,7 @@ def _supabase_patch(table: str, new_data: list) -> bool:
         logger.error(f"Supabase PATCH {table}: {e}")
         return False
 
-# Aggiungi metodi al Jarvis
 def gestionale_ordini(self, stato: Optional[str] = None, tavolo: Optional[str] = None, limit: int = 20) -> str:
-    """Legge ordini dal gestionale. Filtra per stato o tavolo."""
     doc = _supabase_get("tm_orders")
     if not doc:
         return "Errore lettura ordini"
@@ -390,10 +382,6 @@ def gestionale_ordini(self, stato: Optional[str] = None, tavolo: Optional[str] =
     return f"Ordini ({len(orders)}):\n" + "\n".join(lines)
 
 def gestionale_comanda(self, tavolo: str, items: List[Dict], destination: str = "cucina") -> str:
-    """
-    Invia nuova comanda in cucina/bar.
-    items = [{"name": "Royal Burger", "qty": 1, "price": 15, "type": "food"}]
-    """
     doc = _supabase_get("tm_orders")
     if not doc:
         return "Errore lettura gestionale"
@@ -419,7 +407,6 @@ def gestionale_comanda(self, tavolo: str, items: List[Dict], destination: str = 
     return "Errore invio comanda"
 
 def gestionale_stato_tavoli(self) -> str:
-    """Riassunto stato attuale tavoli da ordini aperti"""
     doc = _supabase_get("tm_orders")
     if not doc:
         return "Errore"
@@ -434,7 +421,6 @@ def gestionale_stato_tavoli(self) -> str:
     lines = [f"{t}: {', '.join(sts)}" for t, sts in sorted(by_table.items())]
     return "Tavoli attivi:\n" + "\n".join(lines)
 
-# Bind metodi
 Jarvis.gestionale_ordini = gestionale_ordini
 Jarvis.gestionale_comanda = gestionale_comanda
 Jarvis.gestionale_stato_tavoli = gestionale_stato_tavoli
@@ -442,110 +428,67 @@ Jarvis.gestionale_stato_tavoli = gestionale_stato_tavoli
 # ========== ISTANZA ==========
 jarvis = Jarvis()
 
-
-# ========== 4. DEPLOY + LOOP H24 ==========
-def run_h24(interval_sec: int = 30):
-    """
-    Loop H24 autonomo.
-    In produzione: Docker + restart always + healthcheck.
-    Comandi deploy:
-      docker build -t jarvis-teste-matte .
-      docker run -d --restart=always --env-file .env -p 8000:8000 jarvis-teste-matte
-    Oppure Railway / Fly.io / Modal con webhook endpoint.
-    """
-    logger.info(f"Jarvis H24 avviato – intervallo {interval_sec}s")
-    print(f"[{datetime.now().isoformat()}] Jarvis H24 autonomo attivo")
+# ========== LOOP H24 (in background, dentro il web service) ==========
+def run_h24_background(interval_sec: int = 30):
+    logger.info(f"Loop H24 avviato – intervallo {interval_sec}s")
     while True:
         try:
-            # 1. Processa webhook in coda
             risultati = jarvis.processa_coda()
             for r in risultati:
-                print(f"  → {r}")
-
-            # 2. Health check memoria e rate
+                logger.info(f"H24 → {r}")
             if len(jarvis.memory.data) > 10000:
                 logger.warning("Memoria grande – considera compaction")
-
-            # 3. Qui in produzione: polling email/WA/IG se non webhook
-            # jarvis.think("Controlla nuovi messaggi critici e agisci", fast=True)
-
         except Exception as e:
             logger.error(f"Errore loop H24: {e}")
         time.sleep(interval_sec)
 
-# ========== DOCKERFILE (punto 4) – salvato come riferimento ==========
-DOCKERFILE_CONTENT = """
-FROM python:3.12-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY jarvis.py .
-ENV PYTHONUNBUFFERED=1
-CMD ["python", "jarvis.py"]
-# Per webhook: aggiungere FastAPI endpoint e uvicorn
-"""
+# ========== API WEB (FastAPI) ==========
+app = FastAPI(title="Jarvis - Teste Matte")
 
-def chat_interattiva():
-    """Chat diretta con Jarvis – comandi e prompt liberi"""
-    print("=" * 60)
-    print("JARVIS – Chat interattiva | Teste Matte")
-    print("=" * 60)
-    print("Comandi rapidi:")
-    print("  /ordini          → ultimi ordini")
-    print("  /tavoli          → stato tavoli")
-    print("  /comanda T5 pizza 1 12  → invia comanda")
-    print("  /memoria         → mostra memoria")
-    print("  /h24             → avvia loop autonomo")
-    print("  /esci            → esci")
-    print("Oppure scrivi qualsiasi prompt libero.")
-    print("=" * 60)
+class ChatRequest(BaseModel):
+    message: str
 
-    while True:
-        try:
-            user = input("\nTu: ").strip()
-            if not user:
-                continue
-            if user.lower() in ("/esci", "exit", "quit"):
-                print("Jarvis: Arrivederci.")
-                break
-            if user.lower() == "/ordini":
-                print("Jarvis:", jarvis.gestionale_ordini(limit=10))
-                continue
-            if user.lower() == "/tavoli":
-                print("Jarvis:", jarvis.gestionale_stato_tavoli())
-                continue
-            if user.lower() == "/memoria":
-                mem = jarvis.memory.tutto()[-8:]
-                for m in mem:
-                    print(f"  - {m.get('chiave')}: {m.get('valore')[:60]}")
-                continue
-            if user.lower() == "/h24":
-                print("Jarvis: Avvio loop H24...")
-                run_h24(30)
-                break
-            if user.lower().startswith("/comanda "):
-                # Esempio: /comanda T5 Royal Burger 1 15
-                parti = user[9:].split()
-                if len(parti) >= 4:
-                    tavolo = parti[0]
-                    nome = " ".join(parti[1:-2])
-                    qty = int(parti[-2])
-                    prezzo = float(parti[-1])
-                    res = jarvis.gestionale_comanda(tavolo, [{"name": nome, "qty": qty, "price": prezzo, "type": "food"}])
-                    print("Jarvis:", res)
-                else:
-                    print("Jarvis: Uso → /comanda T5 NomePiatto 1 12")
-                continue
+class ComandaRequest(BaseModel):
+    tavolo: str
+    items: List[Dict]
+    destination: str = "cucina"
 
-            # Prompt libero
-            risposta = jarvis.think(user)
-            print("Jarvis:", risposta)
+@app.get("/")
+def root():
+    return {"status": "ok", "agent": "Jarvis - Teste Matte", "time": datetime.now().isoformat()}
 
-        except KeyboardInterrupt:
-            print("\nJarvis: Interrotto.")
-            break
-        except Exception as e:
-            print(f"Jarvis: Errore – {e}")
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
+@app.post("/chat")
+def chat(req: ChatRequest):
+    risposta = jarvis.think(req.message)
+    return {"risposta": risposta}
+
+@app.get("/ordini")
+def ordini(stato: Optional[str] = None, tavolo: Optional[str] = None, limit: int = 20):
+    return {"risultato": jarvis.gestionale_ordini(stato=stato, tavolo=tavolo, limit=limit)}
+
+@app.get("/tavoli")
+def tavoli():
+    return {"risultato": jarvis.gestionale_stato_tavoli()}
+
+@app.post("/comanda")
+def comanda(req: ComandaRequest):
+    return {"risultato": jarvis.gestionale_comanda(req.tavolo, req.items, req.destination)}
+
+@app.get("/memoria")
+def memoria():
+    return {"memoria": jarvis.memory.tutto()[-20:]}
+
+@app.post("/webhook/{source}")
+def webhook(source: str, payload: Dict):
+    return {"risultato": jarvis.ricevi_webhook(source, payload)}
 
 if __name__ == "__main__":
-    chat_interattiva()
+    # Avvia il loop H24 in background e il server web in primo piano.
+    threading.Thread(target=run_h24_background, args=(30,), daemon=True).start()
+    port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Jarvis H24 web service avviato sulla porta {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)

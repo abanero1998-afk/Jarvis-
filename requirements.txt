@@ -1,0 +1,5 @@
+anthropic
+groq
+fastapi
+uvicorn[standard]
+pydantic

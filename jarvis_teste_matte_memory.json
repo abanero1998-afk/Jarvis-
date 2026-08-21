@@ -1,0 +1,33 @@
+[
+  {
+    "id": "1787343951.896137",
+    "chiave": "Il capo si chiama",
+    "valore": "Fondatore Teste Matte",
+    "tags": [
+      "identita"
+    ],
+    "embedding": "44f1061cadd7e2a8",
+    "timestamp": "2026-08-21T20:25:51.896286"
+  },
+  {
+    "id": "1787343952.246689",
+    "chiave": "La fattoria si chiama",
+    "valore": "Teste Matte",
+    "tags": [
+      "identita",
+      "fattoria"
+    ],
+    "embedding": "4db71f3807a5d0ab",
+    "timestamp": "2026-08-21T20:25:52.246722"
+  },
+  {
+    "id": "1787343952.810158",
+    "chiave": "Business",
+    "valore": "Ristorante + Brand + Fattoria agriturismo 5.0",
+    "tags": [
+      "business"
+    ],
+    "embedding": "0ef16e47282e5722",
+    "timestamp": "2026-08-21T20:25:52.810201"
+  }
+]

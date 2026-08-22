@@ -1,54 +1,39 @@
-<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JARVIS Report</title>
-<style>
-body{margin:0;background:#06070a;color:#e8f4f4;font-family:system-ui;padding:16px}
-h1{font-size:13px;letter-spacing:3px;color:#5fd8e0}
-.k{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.b{border:1px solid rgba(45,166,176,.3);border-radius:10px;padding:12px}
-.b b{display:block;font-size:22px;color:#5fd8e0}
-.b span{font-size:11px;color:#7a8f92;letter-spacing:1px}
-.flow{display:flex;gap:8px;align-items:center;margin:14px 0}
-.flow .b{flex:1;text-align:center}
-.bars{display:flex;align-items:flex-end;height:80px;gap:2px;margin:10px 0 16px}
-.bars i{flex:1;background:rgba(45,166,176,.4);min-height:2px;border-radius:2px 2px 0 0}
-.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:14px}
-a{color:#5fd8e0;text-decoration:none;font-size:12px;letter-spacing:1px}
-</style></head><body>
-<a href="/">← JARVIS</a>
-<h1>REPORT GIORNALIERO</h1>
-<div class="k">
-<div class="b"><b id="i">—</b><span>INCASSO</span></div>
-<div class="b"><b id="s">—</b><span>SCONTRINI</span></div>
-<div class="b"><b id="a">—</b><span>IN ATTESA</span></div>
-<div class="b"><b id="p">—</b><span>PRONTI</span></div>
-</div>
-<div class="flow">
-<div class="b">SALA<br><b id="ts">0</b></div>
-<div>→</div>
-<div class="b">CUCINA<br><b id="tc">0</b></div>
-<div>→</div>
-<div class="b">BAR<br><b id="tb">0</b></div>
-</div>
-<div style="font-size:11px;letter-spacing:2px;color:#7a8f92">ANDAMENTO ORARIO</div>
-<div class="bars" id="bars"></div>
-<div style="font-size:11px;letter-spacing:2px;color:#7a8f92">TOP PRODOTTI</div>
-<div id="top"></div>
-<div style="font-size:11px;letter-spacing:2px;color:#7a8f92;margin-top:12px">TAVOLI</div>
-<div id="tav"></div>
+<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Report</title>
+<style>body{margin:0;background:#06070a;color:#e8f4f4;font-family:system-ui;padding:16px}h1{font-size:13px;letter-spacing:3px;color:#5fd8e0}.k{display:grid;grid-template-columns:1fr 1fr;gap:8px}.b{border:1px solid rgba(45,166,176,.3);border-radius:10px;padding:12px}.b b{display:block;font-size:22px;color:#5fd8e0}.b span{font-size:11px;color:#7a8f92}.flow{display:flex;gap:8px;margin:14px 0}.flow .b{flex:1;text-align:center}.bars{display:flex;align-items:flex-end;height:80px;gap:2px;margin:10px 0}.bars i{flex:1;background:rgba(45,166,176,.4);min-height:2px}.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}a{color:#5fd8e0;text-decoration:none}</style></head><body>
+<a href="/">← JARVIS</a><h1>REPORT GIORNALIERO</h1>
+<div class="k"><div class="b"><b id="i">—</b><span>INCASSO</span></div><div class="b"><b id="s">—</b><span>SCONTRINI</span></div><div class="b"><b id="a">—</b><span>IN ATTESA</span></div><div class="b"><b id="p">—</b><span>PRONTI</span></div></div>
+<div class="flow"><div class="b">SALA<br><b id="ts">0</b></div><div class="b">CUCINA<br><b id="tc">0</b></div><div class="b">BAR<br><b id="tb">0</b></div></div>
+<div class="bars" id="bars"></div><div id="top"></div><div id="tav"></div>
 <script>
-fetch("/api/report").then(r=>r.json()).then(d=>{
- document.getElementById("i").textContent=(d.incasso||0).toFixed(2)+"€";
- document.getElementById("s").textContent=d.scontrini||0;
- document.getElementById("a").textContent=d.in_attesa||0;
- document.getElementById("p").textContent=d.pronti||0;
- document.getElementById("ts").textContent=d.ticket_oggi||0;
- document.getElementById("tc").textContent=d.cucina||0;
- document.getElementById("tb").textContent=d.bar||0;
- const max=Math.max.apply(null,(d.ore||[0]).concat([1]));
+const SB="https://qnpdilurpkjsqloznmko.supabase.co";
+const KEY="sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--";
+function sameDay(iso){if(!iso)return false;const d=new Date(iso),n=new Date();return d.toDateString()===n.toDateString();}
+fetch(SB+"/rest/v1/tm_orders?id=eq.main&select=data",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}}).then(r=>r.json()).then(rows=>{
+ const orders=(rows[0]&&rows[0].data)||[];
+ const tod=orders.filter(o=>sameDay(o.createdAt)||sameDay(o.paidAt));
+ const paid=tod.filter(o=>o.status==="pagato"||o.paidAt);
+ const att=orders.filter(o=>o.status==="inviato"||o.status==="in_preparazione");
+ const pro=orders.filter(o=>o.status==="pronto");
+ const inc=paid.reduce((s,o)=>s+Number(o.total||0),0);
+ document.getElementById("i").textContent=inc.toFixed(2)+"€";
+ document.getElementById("s").textContent=paid.length;
+ document.getElementById("a").textContent=att.length;
+ document.getElementById("p").textContent=pro.length;
+ document.getElementById("ts").textContent=tod.length;
+ document.getElementById("tc").textContent=tod.filter(o=>o.destination==="cucina").length;
+ document.getElementById("tb").textContent=tod.filter(o=>o.destination==="bar").length;
+ const hours=Array(24).fill(0);
+ paid.forEach(o=>{const h=new Date(o.paidAt||o.createdAt).getHours();hours[h]+=Number(o.total||0);});
+ const max=Math.max.apply(null,hours.concat([1]));
  const bars=document.getElementById("bars");
- (d.ore||[]).forEach(v=>{const i=document.createElement("i");i.style.height=Math.max(2,(v/max)*78)+"px";bars.appendChild(i);});
+ hours.forEach(v=>{const i=document.createElement("i");i.style.height=Math.max(2,v/max*78)+"px";bars.appendChild(i);});
+ const prod={};
+ tod.forEach(o=>(o.items||[]).forEach(it=>{const n=it.name||"?";prod[n]=(prod[n]||0)+Number(it.qty||1)*Number(it.price||0);}));
  const top=document.getElementById("top");
- (d.top||[]).forEach(p=>{const r=document.createElement("div");r.className="row";r.innerHTML="<b>"+p.nome+"</b><span>"+p.euro.toFixed(2)+"€</span>";top.appendChild(r);});
- const tav=document.getElementById("tav");
- (d.tavoli||[]).forEach(p=>{const r=document.createElement("div");r.className="row";r.innerHTML="<b>"+p.nome+"</b><span>"+p.euro.toFixed(2)+"€</span>";tav.appendChild(r);});
-}).catch(()=>{document.getElementById("i").textContent="n/d";});
+ Object.entries(prod).sort((a,b)=>b[1]-a[1]).slice(0,6).forEach(([n,e])=>{const r=document.createElement("div");r.className="row";r.innerHTML="<b>"+n+"</b><span>"+e.toFixed(2)+"€</span>";top.appendChild(r);});
+ const tav={};
+ tod.forEach(o=>{const k=o.tableName||o.tableId||"?";tav[k]=(tav[k]||0)+Number(o.total||0);});
+ const tv=document.getElementById("tav");
+ Object.entries(tav).sort((a,b)=>b[1]-a[1]).slice(0,8).forEach(([n,e])=>{const r=document.createElement("div");r.className="row";r.innerHTML="<b>"+n+"</b><span>"+e.toFixed(2)+"€</span>";tv.appendChild(r);});
+});
 </script></body></html>

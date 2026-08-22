@@ -2,69 +2,140 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>JARVIS · Teste Matte</title>
+<title>JARVIS</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-:root{--bg:#06070a;--grid:rgba(45,166,176,.08);--teal:#2da6b0;--teal-l:#5fd8e0;--glow:rgba(45,166,176,.6);--ink:#e8f4f4;--muted:#7a8f92}
+:root{--bg:#07080c;--cyan:#00F5FF;--red:#E10600;--ink:#eaf6f8;--mut:#7d8b93}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden}
-body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:40px 40px}
-.topbar{position:absolute;top:0;left:0;right:0;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;z-index:20}
-.brand{font-size:12px;letter-spacing:3px;color:var(--teal-l);opacity:.7}
-.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
-.dot{width:8px;height:8px;border-radius:50%;background:#47c98a;box-shadow:0 0 10px #47c98a;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.center{position:absolute;inset:0 0 280px 0;display:flex;align-items:center;justify-content:center}
-.ring-wrap{position:relative;width:200px;height:200px}
-.ring{width:100%;height:100%;border-radius:50%;border:2px solid var(--teal);box-shadow:0 0 20px var(--glow),inset 0 0 30px rgba(45,166,176,.15);animation:spin 12s linear infinite}
-@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
-.ring-label b{font-size:28px;letter-spacing:8px;color:var(--teal-l);text-shadow:0 0 24px var(--glow)}
-.ring-label span{font-size:13px;letter-spacing:3px;color:var(--muted)}
-.chat-panel{position:absolute;bottom:76px;left:10px;right:10px;max-width:460px;margin:0 auto;height:230px;background:rgba(11,13,17,.94);border:1px solid rgba(45,166,176,.35);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;z-index:30}
-.chat-header{padding:10px 14px;font-size:11px;letter-spacing:2px;color:var(--teal-l);border-bottom:1px solid rgba(45,166,176,.15);display:flex;justify-content:space-between}
-.chat-log{flex:1;overflow-y:auto;padding:12px;font-size:14px;line-height:1.45}
-.chat-log .user{color:var(--muted);margin-bottom:8px}
-.chat-log .jarvis{color:var(--teal-l);margin-bottom:12px;white-space:pre-wrap}
-.chat-input-row{display:flex;border-top:1px solid rgba(45,166,176,.15)}
-.chat-input-row input{flex:1;background:transparent;border:none;padding:14px;color:var(--ink);font-size:15px;outline:none}
-.chat-input-row button{background:transparent;border:none;color:var(--teal);padding:0 16px;font-size:18px}
-.controls{position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:40}
-.btn{padding:10px 14px;border-radius:99px;border:1px solid rgba(45,166,176,.4);background:rgba(45,166,176,.12);color:var(--teal-l);font-size:12px;letter-spacing:1px;cursor:pointer}
-.btn.mic.active{background:rgba(226,87,76,.25);border-color:#e2574c;color:#ff8a80}
-</style></head><body>
-<div class="topbar"><div class="brand">TESTE MATTE · JARVIS</div><div class="status"><span class="dot"></span> ONLINE</div></div>
-<div class="center"><div class="ring-wrap"><div class="ring"></div><div class="ring-label"><b>JARVIS</b><span id="clock">--:--</span></div></div></div>
-<div class="chat-panel"><div class="chat-header"><span>CHAT</span><span id="brainStatus">operativo</span></div>
-<div class="chat-log" id="chatLog"></div>
-<div class="chat-input-row"><input id="chatInput" placeholder="Parla con Jarvis..." autocomplete="off"><button id="btnSend">➤</button></div></div>
+html,body{height:100%;background:radial-gradient(1200px 500px at 50% -10%,rgba(225,6,0,.18),transparent 50%),#07080c;color:var(--ink);font-family:system-ui,sans-serif;overflow:hidden}
+body{background-image:linear-gradient(rgba(0,245,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,.05) 1px,transparent 1px);background-size:36px 36px}
+.topbar{position:absolute;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;z-index:20;font-size:11px;letter-spacing:2px;color:var(--cyan)}
+.dot{width:8px;height:8px;border-radius:50%;background:#00F5FF;box-shadow:0 0 10px #00F5FF;display:inline-block;margin-right:6px}
+.center{position:absolute;top:42px;left:0;right:0;height:168px;display:flex;align-items:center;justify-content:center}
+.ring{width:148px;height:148px;border-radius:50%;border:2px solid var(--cyan);box-shadow:0 0 24px rgba(0,245,255,.45),inset 0 0 24px rgba(225,6,0,.2);animation:spin 14s linear infinite;position:relative}
+.ring b,.ring span{position:absolute;left:0;right:0;text-align:center}
+.ring b{top:54px;letter-spacing:6px;color:var(--cyan);font-size:18px;text-shadow:0 0 18px #00F5FF}
+.ring span{top:80px;color:var(--mut);font-size:12px;letter-spacing:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.chat-panel{position:absolute;top:210px;bottom:70px;left:8px;right:8px;max-width:520px;margin:0 auto;background:rgba(10,12,16,.78);backdrop-filter:blur(16px);border:1px solid rgba(0,245,255,.28);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;z-index:30}
+.chat-header{padding:8px 12px;font-size:10px;letter-spacing:2px;color:var(--cyan);border-bottom:1px solid rgba(0,245,255,.12);display:flex;justify-content:space-between}
+.chat-log{flex:1;overflow-y:auto;padding:10px}
+.user{color:var(--mut);margin:6px 0;font-size:13px}
+.jarvis{color:var(--cyan);margin:6px 0 10px;font-size:14px;white-space:pre-wrap}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(0,245,255,.22);border-radius:12px;padding:8px;backdrop-filter:blur(10px)}
+.card b{display:block;font-size:16px;color:#fff}
+.card span{font-size:10px;letter-spacing:1px;color:var(--mut)}
+.card em{font-style:normal;color:#ff6b63;font-size:10px}
+.flow{display:flex;gap:4px;margin:8px 0}
+.flow .card{flex:1;text-align:center}
+.chat-input-row{display:flex;border-top:1px solid rgba(0,245,255,.12)}
+.chat-input-row input{flex:1;background:transparent;border:0;padding:12px;color:#fff;outline:0}
+.chat-input-row button{background:0;border:0;color:var(--cyan);padding:0 12px}
+.controls{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:40}
+.btn{padding:9px 12px;border-radius:99px;border:1px solid rgba(0,245,255,.35);background:rgba(0,245,255,.08);color:var(--cyan);font-size:11px;letter-spacing:1px}
+.btn.mic.active{border-color:var(--red);color:#ff8a80;background:rgba(225,6,0,.2)}
+</style></head>
+<body>
+<div class="topbar"><div>TESTE MATTE</div><div><span class="dot"></span>ONLINE</div></div>
+<div class="center"><div class="ring"><b>JARVIS</b><span id="clock">--:--</span></div></div>
+<div class="chat-panel">
+  <div class="chat-header"><span>CHAT HUD</span><span id="brainStatus">operativo</span></div>
+  <div class="chat-log" id="chatLog"></div>
+  <div class="chat-input-row"><input id="chatInput" placeholder="Chiedi il report, un tavolo, un'idea..." autocomplete="off"><button id="btnSend">➤</button></div>
+</div>
 <div class="controls">
-<button class="btn" id="btnCam">CAMERA</button>
-<button class="btn mic" id="btnMic">MIC</button>
-<button class="btn" id="btnRep">REPORT</button>
+  <button class="btn" id="btnCam">CAMERA</button>
+  <button class="btn mic" id="btnMic">MIC</button>
+  <button class="btn" id="btnRep">REPORT</button>
 </div>
 <script>
 (function(){
-  const API=window.location.origin;
+  const API=location.origin;
+  const SB="https://qnpdilurpkjsqloznmko.supabase.co";
+  const KEY="sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--";
   const logEl=document.getElementById("chatLog");
   const inputEl=document.getElementById("chatInput");
   const brainEl=document.getElementById("brainStatus");
   const clockEl=document.getElementById("clock");
-  let listening=false,recognition=null,audioObj=null;
+  let listening=false,recognition=null,audioObj=null,chart;
   function tick(){clockEl.textContent=new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});}
   setInterval(tick,1000);tick();
-  function addLog(who,text){const d=document.createElement("div");d.className=who;d.textContent=(who==="user"?"Tu: ":"Jarvis: ")+text;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;}
-  function cleanSpeak(text){return String(text||"").replace(/\*\*/g,"").replace(/ANALISI\s*:/gi,"").replace(/AZIONE\s*:/gi,"").replace(/RISULTATO\s*:/gi,"").replace(/\s+/g," ").trim().slice(0,280);}
-  function fallbackSpeak(text){try{if(!window.speechSynthesis)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(cleanSpeak(text));u.lang="it-IT";window.speechSynthesis.speak(u);}catch(e){}}
-  async function speak(text){const line=cleanSpeak(text);try{if(audioObj){audioObj.pause();}const res=await fetch(API+"/api/speak",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:line})});if(!res.ok)throw 0;audioObj=new Audio(URL.createObjectURL(await res.blob()));audioObj.play().catch(function(){fallbackSpeak(line);});}catch(e){fallbackSpeak(line);}}
-  async function ask(text){addLog("user",text);if(/report|schema|giornalier/i.test(text)) location.href="/report";brainEl.textContent="pensando...";try{const res=await fetch(API+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})});const data=await res.json();const reply=data.risposta||"Ricevuto, signore.";addLog("jarvis",reply);speak(reply);brainEl.textContent="operativo";}catch(e){addLog("jarvis","Sistemi locali attivi.");speak("Sistemi locali attivi.");}}
+  function addLog(who,text){const d=document.createElement("div");d.className=who;d.textContent=(who==="user"?"Tu: ":"Jarvis: ")+text;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;return d;}
+  function cleanSpeak(t){return String(t||"").replace(/\s+/g," ").trim().slice(0,240);}
+  function fallbackSpeak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(cleanSpeak(t));u.lang="it-IT";speechSynthesis.speak(u);}catch(e){}}
+  async function speak(text){const line=cleanSpeak(text);try{if(audioObj)audioObj.pause();const res=await fetch(API+"/api/speak",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:line})});if(!res.ok)throw 0;audioObj=new Audio(URL.createObjectURL(await res.blob()));audioObj.play().catch(()=>fallbackSpeak(line));}catch(e){fallbackSpeak(line);}}
+  function sameDay(iso){if(!iso)return false;return new Date(iso).toDateString()===new Date().toDateString();}
+  async function loadDash(){
+    const rows=await fetch(SB+"/rest/v1/tm_orders?id=eq.main&select=data",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}}).then(r=>r.json());
+    const orders=(rows[0]&&rows[0].data)||[];
+    const tod=orders.filter(o=>sameDay(o.createdAt)||sameDay(o.paidAt));
+    const yest=new Date(); yest.setDate(yest.getDate()-1);
+    const ystr=yest.toDateString();
+    const yod=orders.filter(o=>{const d=o.paidAt||o.createdAt;return d&&new Date(d).toDateString()===ystr&&(o.status==="pagato"||o.paidAt);});
+    const paid=tod.filter(o=>o.status==="pagato"||o.paidAt);
+    const att=orders.filter(o=>o.status==="inviato"||o.status==="in_preparazione");
+    const inc=paid.reduce((s,o)=>s+Number(o.total||0),0);
+    const yinc=yod.reduce((s,o)=>s+Number(o.total||0),0);
+    const delta=yinc?Math.round(((inc-yinc)/yinc)*100):0;
+    const pezzi=tod.reduce((s,o)=>s+(o.items||[]).reduce((a,i)=>a+Number(i.qty||1),0),0);
+    const medio=paid.length?inc/paid.length:0;
+    const hours=Array(24).fill(0);
+    paid.forEach(o=>{hours[new Date(o.paidAt||o.createdAt).getHours()]+=Number(o.total||0);});
+    const prod={}; tod.forEach(o=>(o.items||[]).forEach(i=>{prod[i.name]=(prod[i.name]||0)+Number(i.qty||1)*Number(i.price||0);}));
+    const top=Object.entries(prod).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    return {inc,delta,medio,pezzi,paid:paid.length,att:att.length,cuc:tod.filter(o=>o.destination==="cucina").length,bar:tod.filter(o=>o.destination==="bar").length,hours,top};
+  }
+  function paintDash(d){
+    const wrap=document.createElement("div");
+    wrap.innerHTML=`<div class="kpis">
+      <div class="card"><b>${d.inc.toFixed(2)}€</b><span>INCASSO OGGI</span><em>${d.delta>=0?"+":""}${d.delta}% vs ieri</em></div>
+      <div class="card"><b>${d.medio.toFixed(2)}€</b><span>SCONTRINO MEDIO</span></div>
+      <div class="card"><b>${d.pezzi}</b><span>PEZZI VENDUTI</span></div>
+      <div class="card"><b>${d.paid}</b><span>SCONTRINI</span></div></div>
+      <div class="flow">
+        <div class="card">SALA<br><b>${d.paid+d.att}</b></div>
+        <div class="card">CUCINA<br><b>${d.cuc}</b></div>
+        <div class="card">BAR<br><b>${d.bar}</b></div>
+        <div class="card">ATTESA<br><b>${d.att}</b></div>
+      </div>
+      <canvas id="hChart" height="90"></canvas>
+      <div id="topList"></div>`;
+    logEl.appendChild(wrap);
+    const tl=wrap.querySelector("#topList");
+    d.top.forEach(([n,e])=>{const r=document.createElement("div");r.className="jarvis";r.textContent=n+"  "+e.toFixed(2)+"€";tl.appendChild(r);});
+    if(chart) chart.destroy();
+    chart=new Chart(wrap.querySelector("#hChart"),{type:"bar",data:{labels:[...Array(24).keys()].map(h=>h),datasets:[{data:d.hours,backgroundColor:"rgba(0,245,255,.55)",borderRadius:3}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#7d8b93",maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:"#7d8b93"},grid:{color:"rgba(255,255,255,.06)"}}}}});
+    logEl.scrollTop=logEl.scrollHeight;
+  }
+  async function showReport(){
+    addLog("jarvis","Carico il report in HUD...");
+    try{const d=await loadDash();paintDash(d);speak("Report di oggi: incasso "+d.inc.toFixed(2)+" euro, scontrino medio "+d.medio.toFixed(2)+", "+d.att+" comande in attesa.");}
+    catch(e){addLog("jarvis","Report non disponibile.");}
+  }
+  async function ask(text){
+    addLog("user",text);
+    const vis=/report|incass|schema|giornal|vendit|quanto|grafico|dashboard/i.test(text);
+    if(vis) await showReport();
+    brainEl.textContent="pensando...";
+    try{
+      const res=await fetch(API+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})});
+      const data=await res.json();
+      const reply=data.risposta||"Ricevuto, signore.";
+      addLog("jarvis",reply);
+      if(!vis) speak(reply);
+      brainEl.textContent="operativo";
+    }catch(e){addLog("jarvis","Sistemi locali attivi.");}
+  }
   function send(){const t=inputEl.value.trim();if(!t)return;inputEl.value="";ask(t);}
   document.getElementById("btnSend").onclick=send;
   inputEl.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();send();}});
-  document.getElementById("btnRep").onclick=function(){location.href="/report";};
-  document.getElementById("btnMic").onclick=function(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;if(!recognition){recognition=new SR();recognition.lang="it-IT";recognition.onresult=function(e){inputEl.value=e.results[0][0].transcript;send();};recognition.onend=function(){listening=false;document.getElementById("btnMic").classList.remove("active");};}if(!listening){listening=true;document.getElementById("btnMic").classList.add("active");recognition.start();}else recognition.stop();};
+  document.getElementById("btnRep").onclick=function(){showReport();};
+  document.getElementById("btnMic").onclick=function(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;if(!recognition){recognition=new SR();recognition.lang="it-IT";recognition.onresult=e=>{inputEl.value=e.results[0][0].transcript;send();};recognition.onend=()=>{listening=false;document.getElementById("btnMic").classList.remove("active");};}if(!listening){listening=true;document.getElementById("btnMic").classList.add("active");recognition.start();}else recognition.stop();};
   document.getElementById("btnCam").onclick=async function(){try{const s=await navigator.mediaDevices.getUserMedia({video:true});s.getTracks().forEach(t=>t.stop());speak("Camera raggiungibile, signore.");}catch(e){speak("Permesso camera negato.");}};
-  setTimeout(function(){addLog("jarvis","Sistemi online. A disposizione, signore.");speak("Sistemi online. A disposizione, signore.");},400);
+  setTimeout(()=>{addLog("jarvis","HUD online. Resta tutto qui in home.");speak("Sistemi online. A disposizione, signore.");},400);
 })();
-</script></body></html>
+</script>
+</body></html>

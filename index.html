@@ -28,8 +28,6 @@
       linear-gradient(90deg, var(--grid) 1px, transparent 1px);
     background-size: 40px 40px;
   }
-
-  /* TOP BAR */
   .topbar {
     position: absolute; top: 0; left: 0; right: 0;
     padding: 14px 20px;
@@ -51,8 +49,6 @@
     0%,100% { opacity: 1; }
     50% { opacity: 0.4; }
   }
-
-  /* CENTER RING */
   .center {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -103,8 +99,6 @@
   .ring-label span {
     font-size: 11px; letter-spacing: 2px; color: var(--muted);
   }
-
-  /* CAMERA PREVIEW */
   .cam-box {
     position: absolute; top: 80px; left: 24px;
     width: 180px; height: 120px;
@@ -122,8 +116,6 @@
     position: absolute; bottom: 4px; left: 6px;
     font-size: 10px; color: var(--teal-l); letter-spacing: 1px;
   }
-
-  /* CHAT PANEL */
   .chat-panel {
     position: absolute; top: 80px; right: 24px;
     width: 280px; max-height: 320px;
@@ -157,8 +149,6 @@
     background: transparent; border: none; color: var(--teal);
     padding: 0 14px; cursor: pointer; font-size: 16px;
   }
-
-  /* BOTTOM CONTROLS */
   .controls {
     position: absolute; bottom: 40px; left: 0; right: 0;
     display: flex; justify-content: center; gap: 16px;
@@ -182,8 +172,6 @@
     border-color: #e2574c;
     color: #ff8a80;
   }
-
-  /* STATUS TEXT */
   .status-text {
     position: absolute; bottom: 110px; left: 0; right: 0;
     text-align: center;
@@ -191,8 +179,6 @@
     letter-spacing: 1px;
     min-height: 20px;
   }
-
-  /* RESPONSIVE */
   @media (max-width: 700px) {
     .cam-box, .chat-panel { display: none !important; }
     .ring-wrap { width: 180px; height: 180px; }
@@ -238,15 +224,13 @@
   </div>
 
 <script>
-  // ========== CONFIG ==========
-  const BACKEND = "https://jarvis-teste-matte.onrender.com"; // cambia se diverso
+  const BACKEND = "https://jarvis-teste-matte.onrender.com";
   let listening = false;
   let camOn = false;
   let chatOn = false;
   let recognition = null;
   let synth = window.speechSynthesis;
 
-  // ========== CLOCK ==========
   function updateClock() {
     const now = new Date();
     document.getElementById("timeLabel").textContent =
@@ -255,7 +239,6 @@
   setInterval(updateClock, 1000);
   updateClock();
 
-  // ========== SPEAK ==========
   function speak(text) {
     if (!synth) return;
     synth.cancel();
@@ -263,7 +246,6 @@
     u.lang = "it-IT";
     u.rate = 1.05;
     u.pitch = 0.95;
-    // Preferisci voce maschile se disponibile
     const voices = synth.getVoices();
     const it = voices.find(v => v.lang.startsWith("it") && v.name.toLowerCase().includes("male"))
             || voices.find(v => v.lang.startsWith("it"));
@@ -272,12 +254,10 @@
     setStatus(text);
   }
 
-  // ========== STATUS ==========
   function setStatus(t) {
     document.getElementById("statusText").textContent = t;
   }
 
-  // ========== CHAT LOG ==========
   function addLog(who, text) {
     const log = document.getElementById("chatLog");
     const div = document.createElement("div");
@@ -287,50 +267,51 @@
     log.scrollTop = log.scrollHeight;
   }
 
-  // ========== BACKEND CALL ==========
+  function getLocalReply(text) {
+    const t = text.toLowerCase();
+    if (t.includes("camera") || t.includes("telecamera")) {
+      if (!camOn) toggleCam();
+      return "Apro la camera.";
+    }
+    if (t.includes("chat") || t.includes("messaggi")) {
+      if (!chatOn) toggleChat();
+      return "Apro la chat.";
+    }
+    if (t.includes("ciao") || t.includes("sei lì") || t.includes("are you there") || t.includes("sei li")) {
+      return "A disposizione, signore.";
+    }
+    if (t.includes("pronto") || t.includes("ready")) {
+      return "Sono pronto, signore.";
+    }
+    if (t.includes("ordini") || t.includes("comanda") || t.includes("tavolo")) {
+      return "Collegamento gestionale in corso. Dimmi pure il tavolo e i piatti.";
+    }
+    if (t.includes("grazie")) {
+      return "Di nulla, signore.";
+    }
+    return "Ricevuto. In che modo posso assisterla?";
+  }
+
   async function askJarvis(text) {
+    if (!text || !text.trim()) return;
     addLog("user", text);
     setStatus("Elaboro...");
+    let reply = getLocalReply(text);
     try {
-      // Prova a chiamare il backend se ha endpoint /chat
-      // Altrimenti risponde localmente con frasi Iron Man style
       const res = await fetch(BACKEND + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text })
-      }).catch(() => null);
-
-      let reply = "A disposizione, signore.";
+      });
       if (res && res.ok) {
         const data = await res.json();
-        reply = data.reply || data.response || reply;
-      } else {
-        // Fallback locale stile Iron Man
-        const t = text.toLowerCase();
-        if (t.includes("camera") || t.includes("telecamera")) {
-          reply = "Apro la camera.";
-          if (!camOn) toggleCam();
-        } else if (t.includes("chat") || t.includes("messaggi")) {
-          reply = "Apro la chat.";
-          if (!chatOn) toggleChat();
-        } else if (t.includes("ciao") || t.includes("sei lì") || t.includes("are you there")) {
-          reply = "A disposizione, signore.";
-        } else if (t.includes("pronto") || t.includes("ready")) {
-          reply = "Sono pronto, signore.";
-        } else {
-          reply = "Ricevuto. In che modo posso assisterla?";
-        }
+        if (data.reply || data.response) reply = data.reply || data.response;
       }
-      addLog("jarvis", reply);
-      speak(reply);
-    } catch (e) {
-      const fallback = "Sistemi operativi. Come posso aiutarla?";
-      addLog("jarvis", fallback);
-      speak(fallback);
-    }
+    } catch (e) {}
+    addLog("jarvis", reply);
+    speak(reply);
   }
 
-  // ========== WAKE WORD + STT ==========
   function initRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
@@ -341,48 +322,27 @@
     r.lang = "it-IT";
     r.continuous = true;
     r.interimResults = false;
-
     r.onresult = (e) => {
       const last = e.results[e.results.length - 1];
       if (!last.isFinal) return;
       const text = last[0].transcript.trim();
-      console.log("Heard:", text);
-
-      // Wake word
       const lower = text.toLowerCase();
-      if (lower.includes("okay jarvis") || lower.includes("ok jarvis") ||
-          lower.includes("ehi jarvis") || lower.startsWith("jarvis")) {
-        // Rimuovi wake word
+      if (lower.includes("okay jarvis") || lower.includes("ok jarvis") || lower.includes("ehi jarvis") || lower.startsWith("jarvis")) {
         let cmd = text.replace(/okay jarvis|ok jarvis|ehi jarvis|jarvis/gi, "").trim();
-        if (!cmd) {
-          speak("A disposizione, signore.");
-          return;
-        }
+        if (!cmd) { speak("A disposizione, signore."); return; }
         askJarvis(cmd);
       } else if (listening) {
-        // Se microfono manuale attivo, accetta tutto
         askJarvis(text);
       }
     };
-
-    r.onerror = (e) => {
-      console.warn("Speech error", e.error);
-      if (e.error === "not-allowed") setStatus("Permesso microfono negato");
-    };
-
-    r.onend = () => {
-      if (listening) {
-        try { r.start(); } catch (_) {}
-      }
-    };
-
+    r.onerror = (e) => { if (e.error === "not-allowed") setStatus("Permesso microfono negato"); };
+    r.onend = () => { if (listening) { try { r.start(); } catch (_) {} } };
     return r;
   }
 
   function toggleMic() {
     if (!recognition) recognition = initRecognition();
     if (!recognition) return;
-
     listening = !listening;
     const btn = document.getElementById("btnMic");
     if (listening) {
@@ -397,7 +357,6 @@
     }
   }
 
-  // ========== CAMERA ==========
   async function toggleCam() {
     const box = document.getElementById("camBox");
     const video = document.getElementById("camVideo");
@@ -424,7 +383,6 @@
     }
   }
 
-  // ========== CHAT ==========
   function toggleChat() {
     chatOn = !chatOn;
     document.getElementById("chatPanel").style.display = chatOn ? "flex" : "none";
@@ -444,9 +402,7 @@
     if (e.key === "Enter") sendText();
   });
 
-  // ========== START ==========
   window.speechSynthesis.onvoiceschanged = () => {};
-  // Avvio automatico leggero
   setTimeout(() => {
     speak("Sistemi online. A disposizione, signore.");
   }, 800);

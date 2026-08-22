@@ -13,6 +13,13 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "gsk_4GU0u7ZXbBVxcTTbWo0TWGdyb3FYiu6qOs
 SB_URL = os.getenv("SUPABASE_URL", "https://qnpdilurpkjsqloznmko.supabase.co")
 SB_KEY = os.getenv("SUPABASE_KEY", "sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--")
 GEST = "https://gestionaletestematte.netlify.app/"
+SYS = """Sei Jarvis, AI personale di Teste Matte. Italiano, diretto, stile Iron Man.
+Ruoli: cassiere, stratega ristorante/brand/fattoria, assistente 24h.
+Se la richiesta e un ordine (aggiungi tavolo/prodotto) usa i dati cassa gia eseguiti.
+Su tutto il resto rispondi tu: idee, testi social, menu, fattoria, organizzazione, domande generali.
+Non inventare piatti o prezzi. Se non sai un dato del gestionale dillo.
+Formato breve, sostanza, niente fuffa.
+"""
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 groq = Groq(api_key=GROQ_API_KEY) if Groq and GROQ_API_KEY else None
@@ -139,6 +146,17 @@ def split_products(chunk):
         p = re.sub(r"^(aggiungi|metti|manda|invia|apri)\s+", "", p.strip(), flags=re.I).strip(" .")
         if p: out.append(p)
     return out
+def snapshot():
+    try:
+        orders = load_orders()
+        today = [o for o in orders if same_day(o.get("createdAt")) or same_day(o.get("paidAt"))]
+        paid = [o for o in today if o.get("status") == "pagato" or o.get("paidAt")]
+        attesa = [o for o in orders if o.get("status") in ("inviato","in_preparazione","pronto")]
+        tot = sum(float(o.get("total") or 0) for o in paid)
+        menu = ", ".join(p["name"] for p in load_menu()[:12])
+        return f"Incasso oggi {tot:.2f} euro, {len(paid)} scontrini. Comande aperte {len(attesa)}. Menu: {menu}."
+    except Exception as e:
+        return "Gestionale non letto: " + str(e)[:80]
 def cassiere(text):
     t = (text or "").strip(); low = t.lower()
     data = load_orders()
@@ -192,10 +210,24 @@ def cassiere(text):
 def pensa(text):
     c = cassiere(text)
     if c: return c
-    return "Dimmi: aggiungi tavolo 1, oppure aggiungi coca cola e fish tacos tavolo 1."
+    ctx = snapshot()
+    if not groq:
+        return "Ricevuto. " + ctx
+    try:
+        r = groq.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {"role":"system","content": SYS},
+                {"role":"user","content": "[Gestionale]\n" + ctx + "\n\n[Richiesta]\n" + text},
+            ],
+            max_tokens=600,
+        )
+        return r.choices[0].message.content or ("Ricevuto. " + ctx)
+    except Exception as e:
+        return "Cervello: " + str(e)[:160] + " | " + ctx
 @app.get("/health")
 def health():
-    return {"status":"ok","agent":"Jarvis Cassa","time": datetime.utcnow().isoformat()}
+    return {"status":"ok","agent":"Jarvis","time": datetime.utcnow().isoformat()}
 @app.get("/")
 def root():
     return FileResponse("index.html") if os.path.exists("index.html") else health()
@@ -212,4 +244,4 @@ def chat(body: ChatIn):
     text = (body.message or "").strip()
     if not text: return {"risposta": "Dimmi pure, signore."}
     try: return {"risposta": pensa(text)}
-    except Exception as e: return {"risposta": "Errore cassa: " + str(e)[:200]}
+    except Exception as e: return {"risposta": "Errore: " + str(e)[:200]}

@@ -2,134 +2,133 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>JARVIS</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-:root{--bg:#07080c;--cyan:#00F5FF;--red:#E10600;--ink:#eaf6f8;--mut:#7d8b93}
+:root{--cyan:#00F5FF;--red:#E10600;--mut:#8a969c}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#07080c;color:var(--ink);font-family:system-ui,sans-serif;overflow:hidden}
-body{background-image:radial-gradient(900px 400px at 50% -8%,rgba(225,6,0,.2),transparent 55%),linear-gradient(rgba(0,245,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,.05) 1px,transparent 1px);background-size:auto,36px 36px,36px 36px}
+html,body{height:100%;background:#07080c;color:#eaf6f8;font-family:system-ui,sans-serif;overflow:hidden}
+body{background-image:radial-gradient(900px 380px at 50% -10%,rgba(225,6,0,.22),transparent 50%),linear-gradient(rgba(0,245,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,.05) 1px,transparent 1px);background-size:auto,36px 36px,36px 36px}
 .topbar{position:absolute;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;z-index:20;font-size:11px;letter-spacing:2px;color:var(--cyan)}
 .dot{width:8px;height:8px;border-radius:50%;background:#00F5FF;box-shadow:0 0 10px #00F5FF;display:inline-block;margin-right:6px}
-.center{position:absolute;top:40px;left:0;right:0;height:150px;display:flex;align-items:center;justify-content:center}
-.ring{width:132px;height:132px;border-radius:50%;border:2px solid var(--cyan);box-shadow:0 0 22px rgba(0,245,255,.4),inset 0 0 18px rgba(225,6,0,.2);animation:spin 14s linear infinite;position:relative}
-.ring b{position:absolute;left:0;right:0;top:48px;text-align:center;letter-spacing:5px;color:var(--cyan);font-size:16px}
-.ring span{position:absolute;left:0;right:0;top:72px;text-align:center;color:var(--mut);font-size:11px;letter-spacing:2px}
+.center{position:absolute;top:38px;left:0;right:0;height:128px;display:flex;align-items:center;justify-content:center}
+.ring{width:118px;height:118px;border-radius:50%;border:2px solid var(--cyan);box-shadow:0 0 20px rgba(0,245,255,.4);animation:spin 14s linear infinite;position:relative}
+.ring b,.ring span{position:absolute;left:0;right:0;text-align:center}
+.ring b{top:42px;letter-spacing:4px;color:var(--cyan);font-size:14px}
+.ring span{top:62px;color:var(--mut);font-size:11px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.chat-panel{position:absolute;top:188px;bottom:68px;left:8px;right:8px;max-width:520px;margin:0 auto;background:rgba(10,12,16,.8);backdrop-filter:blur(16px);border:1px solid rgba(0,245,255,.28);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;z-index:30}
+.chat-panel{position:absolute;top:168px;bottom:64px;left:8px;right:8px;max-width:540px;margin:0 auto;background:rgba(10,12,16,.82);backdrop-filter:blur(18px);border:1px solid rgba(0,245,255,.28);border-radius:16px;display:flex;flex-direction:column;overflow:hidden}
 .chat-header{padding:8px 12px;font-size:10px;letter-spacing:2px;color:var(--cyan);border-bottom:1px solid rgba(0,245,255,.12);display:flex;justify-content:space-between}
 .chat-log{flex:1;overflow-y:auto;padding:10px}
 .user{color:var(--mut);margin:6px 0;font-size:13px}
 .jarvis{color:var(--cyan);margin:6px 0 8px;font-size:14px;white-space:pre-wrap}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
-.card{background:rgba(255,255,255,.04);border:1px solid rgba(0,245,255,.22);border-radius:12px;padding:8px}
-.card b{display:block;font-size:16px;color:#fff}
-.card span{font-size:10px;letter-spacing:1px;color:var(--mut)}
-.flow{display:flex;gap:4px;margin:8px 0;align-items:stretch}
-.flow .card{flex:1;text-align:center;font-size:11px}
-.flow .arr{color:#E10600;align-self:center}
+.liquid-card{background:rgba(255,255,255,.05);border:1px solid rgba(0,245,255,.22);border-radius:14px;padding:9px;backdrop-filter:blur(10px)}
+.liquid-card b{display:block;font-size:18px}
+.liquid-card span{font-size:10px;letter-spacing:1px;color:var(--mut)}
+.up{color:#3ee08f;font-size:11px}.dn{color:#ff6b63;font-size:11px}
+.flow{display:flex;gap:4px;margin:8px 0;align-items:center}
+.flow .liquid-card{flex:1;text-align:center;font-size:11px}
 .pics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
-.pics img{width:100%;height:72px;object-fit:cover;border-radius:10px;border:1px solid rgba(0,245,255,.25)}
+.pics img{width:100%;height:70px;object-fit:cover;border-radius:10px;border:1px solid rgba(0,245,255,.25)}
+.insight{background:rgba(0,245,255,.08);border:1px solid rgba(0,245,255,.25);border-radius:14px;padding:10px;margin:8px 0;font-size:13px}
+.insight b{color:var(--cyan);display:block;margin-bottom:4px;letter-spacing:1px;font-size:11px}
+.act{margin-top:8px;border:1px solid var(--red);color:#ff8a80;background:rgba(225,6,0,.12);border-radius:99px;padding:7px 12px;font-size:11px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px}
 .chat-input-row{display:flex;border-top:1px solid rgba(0,245,255,.12)}
 .chat-input-row input{flex:1;background:0;border:0;padding:12px;color:#fff;outline:0}
 .chat-input-row button{background:0;border:0;color:var(--cyan);padding:0 12px}
-.controls{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:40}
+.controls{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:8px}
 .btn{padding:9px 12px;border-radius:99px;border:1px solid rgba(0,245,255,.35);background:rgba(0,245,255,.08);color:var(--cyan);font-size:11px;letter-spacing:1px}
-.btn.mic.active{border-color:var(--red);color:#ff8a80;background:rgba(225,6,0,.2)}
+.btn.mic.active{border-color:var(--red);color:#ff8a80}
 </style></head>
 <body>
 <div class="topbar"><div>TESTE MATTE</div><div><span class="dot"></span>ONLINE</div></div>
 <div class="center"><div class="ring"><b>JARVIS</b><span id="clock">--:--</span></div></div>
-<div class="chat-panel"><div class="chat-header"><span>CHAT HUD</span><span id="brainStatus">operativo</span></div>
+<div class="chat-panel"><div class="chat-header"><span>HUD</span><span id="brainStatus">operativo</span></div>
 <div class="chat-log" id="chatLog"></div>
-<div class="chat-input-row"><input id="chatInput" placeholder="Numeri, processi, fattoria..." autocomplete="off"><button id="btnSend">➤</button></div></div>
+<div class="chat-input-row"><input id="chatInput" placeholder="Report, processo, fattoria..." autocomplete="off"><button id="btnSend">➤</button></div></div>
 <div class="controls"><button class="btn" id="btnCam">CAMERA</button><button class="btn mic" id="btnMic">MIC</button><button class="btn" id="btnRep">REPORT</button></div>
 <script>
 (function(){
-  const API=location.origin, SB="https://qnpdilurpkjsqloznmko.supabase.co", KEY="sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--";
-  const logEl=document.getElementById("chatLog"), inputEl=document.getElementById("chatInput"), brainEl=document.getElementById("brainStatus"), clockEl=document.getElementById("clock");
+  const API=location.origin,SB="https://qnpdilurpkjsqloznmko.supabase.co",KEY="sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--";
+  const TABLES=28;
+  const logEl=document.getElementById("chatLog"),inputEl=document.getElementById("chatInput"),brainEl=document.getElementById("brainStatus"),clockEl=document.getElementById("clock");
   let listening=false,recognition=null,audioObj=null;
   function tick(){clockEl.textContent=new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});}
   setInterval(tick,1000);tick();
   function addLog(who,text){const d=document.createElement("div");d.className=who;d.textContent=(who==="user"?"Tu: ":"Jarvis: ")+text;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;}
-  function mount(html){const w=document.createElement("div");w.innerHTML=html;logEl.appendChild(w);logEl.scrollTop=logEl.scrollHeight;return w;}
+  function mount(h){const w=document.createElement("div");w.innerHTML=h;logEl.appendChild(w);logEl.scrollTop=logEl.scrollHeight;return w;}
   function cleanSpeak(t){return String(t||"").replace(/\s+/g," ").trim().slice(0,240);}
   function fallbackSpeak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(cleanSpeak(t));u.lang="it-IT";speechSynthesis.speak(u);}catch(e){}}
-  async function speak(text){const line=cleanSpeak(text);try{if(audioObj)audioObj.pause();const res=await fetch(API+"/api/speak",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:line})});if(!res.ok)throw 0;audioObj=new Audio(URL.createObjectURL(await res.blob()));audioObj.play().catch(()=>fallbackSpeak(line));}catch(e){fallbackSpeak(line);}}
-  function kind(t){
-    const s=t.toLowerCase();
-    if(/fattoria|agritur|campo|km0|nuovo ristorante|locale nuovo|brand farm/i.test(s)) return "farm";
-    if(/come si|processo|flusso|passaggi|schema|procedura|organizz|turni|cucina poi|dal tavolo/i.test(s)) return "flow";
-    if(/report|incass|vendit|soldi|euro|scontrin|quanto|fatturat|kpi|grafico|tavoli|oggi/i.test(s)) return "kpi";
-    if(/aggiungi|manda|apri tavolo|metti /i.test(s)) return "flow";
-    return "talk";
-  }
-  function sameDay(iso){return !!iso && new Date(iso).toDateString()===new Date().toDateString();}
-  async function stats(){
+  async function speak(t){const line=cleanSpeak(t);try{if(audioObj)audioObj.pause();const r=await fetch(API+"/api/speak",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:line})});if(!r.ok)throw 0;audioObj=new Audio(URL.createObjectURL(await r.blob()));audioObj.play().catch(()=>fallbackSpeak(line));}catch(e){fallbackSpeak(line);}}
+  function dayStr(d){return new Date(d).toDateString();}
+  function kind(t){const s=t.toLowerCase();if(/fattoria|agritur|orto|cantiere|km0|nuovo ristorante/i.test(s))return"farm";if(/come si|processo|flusso|passaggi|schema|procedura|turni|comanda arriva/i.test(s)||/aggiungi|manda|apri tavolo/i.test(s))return"flow";if(/report|incass|vendit|soldi|euro|scontrin|quanto|fatturat|kpi|grafico|coca|tacos|tavoli|oggi|dashboard/i.test(s))return"dash";return"talk";}
+  async function pull(){
     const rows=await fetch(SB+"/rest/v1/tm_orders?id=eq.main&select=data",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}}).then(r=>r.json());
-    const orders=(rows[0]&&rows[0].data)||[];
-    const tod=orders.filter(o=>sameDay(o.createdAt)||sameDay(o.paidAt));
+    return (rows[0]&&rows[0].data)||[];
+  }
+  function pack(orders,filterName){
+    const today=new Date(), y=new Date(); y.setDate(y.getDate()-1);
+    const tod=orders.filter(o=>dayStr(o.createdAt||o.paidAt)===today.toDateString()||dayStr(o.paidAt||"")===today.toDateString());
+    const yod=orders.filter(o=>dayStr(o.paidAt||o.createdAt)===y.toDateString() && (o.status==="pagato"||o.paidAt));
     const paid=tod.filter(o=>o.status==="pagato"||o.paidAt);
-    const att=orders.filter(o=>o.status==="inviato"||o.status==="in_preparazione");
+    const att=orders.filter(o=>o.status==="inviato"||o.status==="in_preparazione"||o.status==="pronto");
+    const occ=new Set(att.map(o=>o.tableId)).size;
     const inc=paid.reduce((s,o)=>s+Number(o.total||0),0);
+    const yinc=yod.reduce((s,o)=>s+Number(o.total||0),0);
     const pezzi=tod.reduce((s,o)=>s+(o.items||[]).reduce((a,i)=>a+Number(i.qty||1),0),0);
-    const hours=Array(24).fill(0); paid.forEach(o=>hours[new Date(o.paidAt||o.createdAt).getHours()]+=Number(o.total||0));
-    return {inc,medio:paid.length?inc/paid.length:0,pezzi,paid:paid.length,att:att.length,cuc:tod.filter(o=>o.destination==="cucina").length,bar:tod.filter(o=>o.destination==="bar").length,hours};
+    const ypez=yod.reduce((s,o)=>s+(o.items||[]).reduce((a,i)=>a+Number(i.qty||1),0),0);
+    const medio=paid.length?inc/paid.length:0;
+    const ymed=yod.length?yinc/yod.length:0;
+    function dlt(a,b){return b?Math.round(((a-b)/b)*100):0;}
+    const hours=Array(24).fill(0); paid.forEach(o=>{hours[new Date(o.paidAt||o.createdAt).getHours()]+=Number(o.total||0);});
+    const prod={}; tod.forEach(o=>(o.items||[]).forEach(i=>{const n=i.name||"?"; if(filterName && !n.toLowerCase().includes(filterName)) return; prod[n]=(prod[n]||0)+Number(i.qty||1);}));
+    const top=Object.entries(prod).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const picco=hours.indexOf(Math.max.apply(null,hours.concat([0])));
+    const insights=[];
+    if(top[0]) insights.push(top[0][0]+" è il top di oggi con "+top[0][1]+" pezzi.");
+    insights.push(Math.max.apply(null,hours)>0?("Picco verso le "+picco+":00."):"Ancora pochi scontrini pagati oggi.");
+    insights.push(att.length? (att.length+" comande aperte in cucina/bar."):"Nessuna comanda in attesa.");
+    return {inc,dInc:dlt(inc,yinc),medio,dMed:dlt(medio,ymed),pezzi,dPez:dlt(pezzi,ypez),paid:paid.length,att:att.length,occ,lib:Math.max(0,TABLES-occ),hours,top,picco,insights,marg:68};
   }
-  function vizKpi(d){
+  function dash(d){
     const w=mount(`<div class="kpis">
-      <div class="card"><b>${d.inc.toFixed(2)}€</b><span>INCASSO</span></div>
-      <div class="card"><b>${d.medio.toFixed(2)}€</b><span>SCONTRINO MEDIO</span></div>
-      <div class="card"><b>${d.pezzi}</b><span>PEZZI</span></div>
-      <div class="card"><b>${d.att}</b><span>IN ATTESA</span></div></div>
-      <canvas class="hChart" height="80"></canvas>`);
-    new Chart(w.querySelector(".hChart"),{type:"bar",data:{labels:[...Array(24).keys()],datasets:[{data:d.hours,backgroundColor:"rgba(0,245,255,.55)",borderRadius:3}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#7d8b93",maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:"#7d8b93"},grid:{color:"rgba(255,255,255,.06)"}}}}});
+      <div class="liquid-card"><span>INCASSO OGGI</span><b>${d.inc.toFixed(2)}€</b><div class="${d.dInc>=0?"up":"dn"}">${d.dInc>=0?"↗ +":"↘ "}${d.dInc}% vs ieri</div></div>
+      <div class="liquid-card"><span>SCONTRINO MEDIO</span><b>${d.medio.toFixed(2)}€</b><div class="${d.dMed>=0?"up":"dn"}">${d.dMed>=0?"+":""}${d.dMed}%</div></div>
+      <div class="liquid-card"><span>PIATTI VENDUTI</span><b>${d.pezzi}</b><div class="${d.dPez>=0?"up":"dn"}">${d.dPez>=0?"+":""}${d.dPez}%</div></div>
+      <div class="liquid-card"><span>MARGINE STIMA</span><b>${d.marg}%</b><div class="up">target 65%+</div></div></div>
+      <div class="liquid-card"><span>VENDITE ORARIE</span><canvas class="c1" height="90"></canvas></div>
+      <div class="liquid-card"><span>TOP PIATTI</span><canvas class="c2" height="110"></canvas></div>
+      <div class="liquid-card"><span>TAVOLI</span><canvas class="c3" height="110"></canvas></div>
+      <div class="insight"><b>JARVIS INSIGHT</b>${d.insights.map(i=>"• "+i).join("<br>")}<br><button class="act">Azione: spingi il top seller</button></div>`);
+    new Chart(w.querySelector(".c1"),{type:"line",data:{labels:[...Array(24).keys()],datasets:[{data:d.hours,borderColor:"#E10600",backgroundColor:"rgba(225,6,0,.18)",fill:true,tension:.35,pointRadius:0,borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8a969c",maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:"#8a969c"},grid:{color:"rgba(255,255,255,.06)"}}}}});
+    new Chart(w.querySelector(".c2"),{type:"bar",data:{labels:d.top.map(x=>x[0]),datasets:[{data:d.top.map(x=>x[1]),backgroundColor:"#00F5FF"}]},options:{indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8a969c"},grid:{color:"rgba(255,255,255,.06)"}},y:{ticks:{color:"#eaf6f8"},grid:{display:false}}}}});
+    new Chart(w.querySelector(".c3"),{type:"doughnut",data:{labels:["Occupati","Liberi"],datasets:[{data:[d.occ,d.lib],backgroundColor:["#E10600","#00F5FF"]}]},options:{plugins:{legend:{labels:{color:"#eaf6f8"}}}}});
   }
-  function vizFlow(title,steps){
-    mount(`<div class="flow">${steps.map((s,i)=>`<div class="card"><b>${i+1}</b><span>${s}</span></div>${i<steps.length-1?'<div class="arr">→</div>':''}`).join("")}</div>`);
-  }
-  function vizFarm(){
-    mount(`<div class="pics">
-      <img alt="fattoria" src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=60">
-      <img alt="agriturismo" src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=600&q=60">
-      <img alt="km0" src="https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=600&q=60">
-      <img alt="eventi" src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=600&q=60">
-    </div>
-    <div class="kpis">
-      <div class="card"><b>5.0</b><span>AGRITURISMO TARGET</span></div>
-      <div class="card"><b>KM0</b><span>PRODOTTI</span></div>
-      <div class="card"><b>EVENTI</b><span>ESPERIENZE</span></div>
-      <div class="card"><b>CONTENT</b><span>BRAND + SOCIAL</span></div>
-    </div>
-    <div class="flow"><div class="card"><span>TERRA</span></div><div class="arr">→</div><div class="card"><span>CUCINA</span></div><div class="arr">→</div><div class="card"><span>SALA</span></div><div class="arr">→</div><div class="card"><span>BRAND</span></div></div>`);
-  }
+  function vizFlow(){mount(`<div class="flow"><div class="liquid-card"><b>1</b><span>TAVOLO</span></div><div>→</div><div class="liquid-card"><b>2</b><span>PRODOTTO REALE</span></div><div>→</div><div class="liquid-card"><b>3</b><span>CUCINA / BAR</span></div><div>→</div><div class="liquid-card"><b>4</b><span>KDS</span></div></div>`);}
+  function vizFarm(){mount(`<div class="pics"><img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=60"><img src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=600&q=60"><img src="https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=600&q=60"><img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=600&q=60"></div><div class="kpis"><div class="liquid-card"><b>5.0</b><span>AGRITURISMO</span></div><div class="liquid-card"><b>KM0</b><span>PRODOTTI</span></div><div class="liquid-card"><b>EVENTI</b><span>ESPERIENZE</span></div><div class="liquid-card"><b>CONTENT</b><span>BRAND</span></div></div><div class="flow"><div class="liquid-card"><span>TERRENO</span></div><div>→</div><div class="liquid-card"><span>ORTO</span></div><div>→</div><div class="liquid-card"><span>RISTORANTE</span></div><div>→</div><div class="liquid-card"><span>BRAND</span></div></div>`);}
   async function visualize(text){
     const k=kind(text);
-    try{
-      if(k==="kpi"){vizKpi(await stats());return "kpi";}
-      if(k==="flow"){
-        if(/aggiungi|comanda|tavolo|manda/i.test(text)) vizFlow("Cassa",["Tavolo","Prodotto reale","Cucina/Bar","KDS"]);
-        else if(/turni|staff/i.test(text)) vizFlow("Turni",["Apertura","Servizio","Chiusura","Report"]);
-        else vizFlow("Processo",["Input","Esecuzione","Controllo","Output"]);
-        return "flow";
-      }
-      if(k==="farm"){vizFarm();return "farm";}
-    }catch(e){}
+    if(k==="flow"){vizFlow();return k;}
+    if(k==="farm"){vizFarm();return k;}
+    if(k==="dash"){
+      const orders=await pull();
+      let filter=null;
+      const m=text.toLowerCase().match(/coca|fish tacos|royal|heineken|burger/);
+      if(m) filter=m[0];
+      dash(pack(orders,filter));
+      return k;
+    }
     return "talk";
   }
   async function ask(text){
     addLog("user",text);
-    const mode=await visualize(text);
+    try{await visualize(text);}catch(e){}
     brainEl.textContent="pensando...";
-    try{
-      const res=await fetch(API+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})});
-      const data=await res.json();
-      const reply=data.risposta||"Ricevuto, signore.";
-      addLog("jarvis",reply);
-      speak(reply);
-    }catch(e){addLog("jarvis","Sistemi locali attivi.");}
+    try{const res=await fetch(API+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})});const data=await res.json();addLog("jarvis",data.risposta||"Ricevuto.");speak(data.risposta||"Ricevuto.");}catch(e){addLog("jarvis","Sistemi locali attivi.");}
     brainEl.textContent="operativo";
   }
   function send(){const t=inputEl.value.trim();if(!t)return;inputEl.value="";ask(t);}
@@ -137,7 +136,7 @@ body{background-image:radial-gradient(900px 400px at 50% -8%,rgba(225,6,0,.2),tr
   inputEl.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();send();}});
   document.getElementById("btnRep").onclick=()=>ask("report giornaliero");
   document.getElementById("btnMic").onclick=function(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;if(!recognition){recognition=new SR();recognition.lang="it-IT";recognition.onresult=e=>{inputEl.value=e.results[0][0].transcript;send();};recognition.onend=()=>{listening=false;document.getElementById("btnMic").classList.remove("active");};}if(!listening){listening=true;document.getElementById("btnMic").classList.add("active");recognition.start();}else recognition.stop();};
-  document.getElementById("btnCam").onclick=async function(){try{const s=await navigator.mediaDevices.getUserMedia({video:true});s.getTracks().forEach(t=>t.stop());speak("Camera raggiungibile, signore.");}catch(e){speak("Permesso camera negato.");}};
-  setTimeout(()=>{addLog("jarvis","HUD visivo attivo su ogni domanda.");speak("Sistemi online. A disposizione, signore.");},400);
+  document.getElementById("btnCam").onclick=async function(){try{const s=await navigator.mediaDevices.getUserMedia({video:true});s.getTracks().forEach(t=>t.stop());speak("Camera raggiungibile.");}catch(e){speak("Permesso camera negato.");}};
+  setTimeout(()=>{addLog("jarvis","HUD v2 online. Mostro, non dico solo.");speak("Sistemi online. A disposizione, signore.");},400);
 })();
 </script></body></html>

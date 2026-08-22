@@ -36,6 +36,19 @@ def save_orders(data):
     req = urllib.request.Request(SB_URL + "/rest/v1/tm_orders?id=eq.main", data=body, headers=hdr({"Prefer": "return=minimal"}), method="PATCH")
     with urllib.request.urlopen(req, timeout=12) as r:
         r.read()
+def fix_stuck(data):
+    changed = False
+    for o in data:
+        if o.get("status") == "in_corso":
+            if o.get("items"):
+                types = { (i.get("type") or "food") for i in o.get("items") or [] }
+                o["status"] = "inviato"
+                o["destination"] = "bar" if types == {"beverage"} else "cucina"
+            else:
+                o["status"] = "pagato"
+                o["paidAt"] = o.get("paidAt") or datetime.now(timezone.utc).isoformat().replace("+00:00","Z")
+            changed = True
+    return changed
 def load_menu():
     now = time.time()
     if _cache["menu"] and now - _cache["t"] < 120:
@@ -64,8 +77,7 @@ def norm(s):
 def search_product(q):
     nq = norm(q)
     if not nq: return None
-    best = None
-    best_score = 0
+    best = None; best_score = 0
     for p in load_menu():
         nn = norm(p.get("name"))
         if not nn: continue
@@ -76,18 +88,15 @@ def search_product(q):
             words = [w for w in nq.split() if len(w) > 2]
             if words and all(w in nn for w in words): score = 70
         if score > best_score:
-            best_score = score
-            best = p
+            best_score = score; best = p
     return best if best_score >= 70 else None
 def table_id(num):
     t = str(num or "").strip().lower().replace("tavolo", "").replace("table", "").strip()
     if t in ("bancone", "bar"): return "BAR", "Bancone"
     if t.startswith("d") or "dehors" in t:
-        d = re.search(r"(\d+)", t)
-        n = d.group(1) if d else "1"
+        d = re.search(r"(\d+)", t); n = d.group(1) if d else "1"
         return "D"+n, "Dehors "+n
-    d = re.search(r"(\d+)", t)
-    n = d.group(1) if d else "1"
+    d = re.search(r"(\d+)", t); n = d.group(1) if d else "1"
     return "T"+n, "T"+n
 def same_day(iso):
     if not iso: return False
@@ -96,33 +105,28 @@ def same_day(iso):
         return d.date() == datetime.now(timezone.utc).date()
     except Exception:
         return False
-def open_order_for(tid):
-    for o in load_orders():
-        if str(o.get("tableId")) == tid and o.get("status") not in ("pagato", "annullato", "chiuso"):
+def dest_of(product):
+    return "bar" if (product.get("type") or "food") == "beverage" else "cucina"
+def find_ticket(data, tid, dest):
+    for o in data:
+        if str(o.get("tableId"))==tid and o.get("destination")==dest and o.get("status") in ("inviato","in_preparazione"):
             return o
     return None
-def open_table(tid, tname):
-    existing = open_order_for(tid)
-    if existing: return existing, False
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    order = {"id": "ord_" + hex(int(time.time()*1000))[2:], "items": [], "total": 0, "paidAt": None, "status": "in_corso", "readyAt": None, "tableId": tid, "servedAt": None, "createdAt": now, "tableName": tname, "destination": "cucina"}
-    data = load_orders(); data.append(order); save_orders(data)
-    return order, True
-def add_item(tid, product, qty=1):
+def add_item(tid, tname, product, qty=1):
+    dest = dest_of(product)
     data = load_orders()
-    target = None
-    for o in data:
-        if str(o.get("tableId")) == tid and o.get("status") not in ("pagato", "annullato", "chiuso"):
-            target = o; break
-    if not target:
-        order, _ = open_table(tid, tid)
-        data = load_orders()
-        for o in data:
-            if o.get("id") == order["id"]:
-                target = o; break
+    if fix_stuck(data):
+        save_orders(data); data = load_orders()
+    target = find_ticket(data, tid, dest)
     item = {"qty": int(qty or 1), "name": product["name"], "type": product.get("type") or "food", "price": float(product["price"]), "variant": "", "productId": product["id"]}
-    target.setdefault("items", []).append(item)
-    target["total"] = sum(float(i.get("price") or 0) * int(i.get("qty") or 1) for i in target["items"])
+    if target:
+        target.setdefault("items", []).append(item)
+        target["total"] = sum(float(i.get("price") or 0)*int(i.get("qty") or 1) for i in target["items"])
+        target["status"] = "inviato"
+    else:
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        target = {"id": "ord_" + hex(int(time.time()*1000))[2:], "items": [item], "total": float(product["price"])*int(qty or 1), "paidAt": None, "status": "inviato", "readyAt": None, "tableId": tid, "servedAt": None, "createdAt": now, "tableName": tname, "destination": dest}
+        data.append(target)
     save_orders(data)
     return target
 def split_products(chunk):
@@ -137,6 +141,9 @@ def split_products(chunk):
     return out
 def cassiere(text):
     t = (text or "").strip(); low = t.lower()
+    data = load_orders()
+    if fix_stuck(data):
+        save_orders(data)
     if any(k in low for k in ("incass", "fatturat")) or ("quanto" in low and "oggi" in low):
         orders = load_orders()
         today = [o for o in orders if same_day(o.get("createdAt")) or same_day(o.get("paidAt"))]
@@ -144,29 +151,26 @@ def cassiere(text):
         tot = sum(float(o.get("total") or 0) for o in paid)
         return f"Oggi {len(paid)} scontrini pagati, incasso {tot:.2f} euro."
     if low in ("tavoli", "elenco tavoli", "stato tavoli"):
-        opened = [o for o in load_orders() if o.get("status") not in ("pagato", "annullato", "chiuso")]
-        if not opened: return "Nessun tavolo aperto."
-        return "Tavoli aperti: " + ", ".join(f"{o.get('tableName')} ({o.get('total')}€)" for o in opened[:20])
+        opened = [o for o in load_orders() if o.get("status") in ("inviato","in_preparazione","pronto")]
+        if not opened: return "Nessun tavolo in attesa."
+        return "In attesa: " + ", ".join(f"{o.get('tableName')} {o.get('destination')} {o.get('total')}€" for o in opened[:20])
     m_tav = re.search(r"(?:tavolo|t)\s*(\d+)|bancone|dehors\s*(\d+)", low)
     want_open = bool(re.search(r"\b(aggiungi tavolo|apri tavolo|apri t\s*\d+|tavolo\s*\d+)\b", low))
     want_add = bool(re.search(r"\b(aggiungi|metti|manda|invia)\b", low)) and bool(m_tav)
+    tid = tname = None
     if m_tav:
         tid, tname = table_id(m_tav.group(0))
-    else:
-        tid = tname = None
     if want_open and tid and not re.search(r"aggiungi .+\s+(al\s+)?tavolo", low):
         only_table = not re.search(r"aggiungi\s+(?!tavolo)([a-z].+)", low)
         if only_table or low.startswith("apri") or low.startswith("aggiungi tavolo"):
-            order, created = open_table(tid, tname)
-            return f"Tavolo {tname} aperto. Pronto per ordine." if created else f"Tavolo {tname} già aperto. Pronto per ordine."
+            return f"Tavolo {tname} pronto. Dimmi i prodotti da inviare in cucina o al bar."
     if want_add and tid:
         phrase = re.sub(r"aggiungi\s+tavolo\s+\d+,?\s*", "", t, flags=re.I)
         phrase = re.sub(r"\b(al\s+)?tavolo\s*\d+\b", "", phrase, flags=re.I)
         phrase = re.sub(r"\bt\s*\d+\b", "", phrase, flags=re.I)
         names = split_products(phrase)
         if not names:
-            open_table(tid, tname)
-            return f"Tavolo {tname} aperto. Dimmi i prodotti da aggiungere."
+            return f"Tavolo {tname} pronto. Dimmi i prodotti."
         found, missing = [], []
         for n in names:
             p = search_product(n)
@@ -174,27 +178,21 @@ def cassiere(text):
             else: missing.append(n)
         if missing:
             return "ERRORE: " + ", ".join(missing) + " non trovato nel gestionale. Vuoi che avviso in cucina?"
-        open_table(tid, tname)
-        last = None; lines = []
+        lines = []; dests = set(); tot = 0
         for p in found:
-            last = add_item(tid, p, 1)
-            lines.append(f"1x {p['name']} ({p['price']:.2f}€)")
-        tot = last.get("total") if last else 0
-        return f"Fatto. Tavolo {tname}: " + ", ".join(lines) + f". Totale parziale: {tot:.2f}€"
+            ticket = add_item(tid, tname, p, 1)
+            dests.add(ticket.get("destination"))
+            tot += float(p["price"])
+            lines.append(f"1x {p['name']} ({p['price']:.2f}€) → {dest_of(p)}")
+        where = " e ".join(sorted(dests))
+        return f"Inviato a {where}. Tavolo {tname}: " + ", ".join(lines) + f". Totale: {tot:.2f}€"
     if want_open and tid:
-        order, created = open_table(tid, tname)
-        return f"Tavolo {tname} aperto. Pronto per ordine." if created else f"Tavolo {tname} già aperto."
+        return f"Tavolo {tname} pronto. Dimmi i prodotti."
     return None
 def pensa(text):
     c = cassiere(text)
     if c: return c
-    if not groq:
-        return "Dimmi: aggiungi tavolo 1, oppure aggiungi coca cola al tavolo 1."
-    try:
-        r = groq.chat.completions.create(model="openai/gpt-oss-20b", messages=[{"role":"system","content":"Cassiere Teste Matte. ZERO invenzione. Se il piatto non e nel menu rispondi errore."},{"role":"user","content":text}], max_tokens=200)
-        return r.choices[0].message.content or "Dimmi tavolo e prodotti."
-    except Exception as e:
-        return "Dimmi tavolo e prodotti."
+    return "Dimmi: aggiungi tavolo 1, oppure aggiungi coca cola e fish tacos tavolo 1."
 @app.get("/health")
 def health():
     return {"status":"ok","agent":"Jarvis Cassa","time": datetime.utcnow().isoformat()}
@@ -207,8 +205,8 @@ def api_search(q: str = Query("")):
     return {"found": bool(p), "q": q, "product": p}
 @app.get("/api/tables")
 def api_tables():
-    opened = [o for o in load_orders() if o.get("status") not in ("pagato","annullato","chiuso")]
-    return {"aperti": [{"id": o.get("tableId"), "name": o.get("tableName"), "total": o.get("total"), "items": o.get("items")} for o in opened]}
+    opened = [o for o in load_orders() if o.get("status") in ("inviato","in_preparazione","pronto")]
+    return {"aperti": [{"id": o.get("tableId"), "name": o.get("tableName"), "dest": o.get("destination"), "status": o.get("status"), "total": o.get("total"), "items": o.get("items")} for o in opened]}
 @app.post("/chat")
 def chat(body: ChatIn):
     text = (body.message or "").strip()

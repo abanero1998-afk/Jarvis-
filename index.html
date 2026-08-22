@@ -82,11 +82,11 @@
       const n = (v.name||"").toLowerCase();
       const l = (v.lang||"").toLowerCase();
       let s = 0;
-      if (l.indexOf("en-gb")>=0 || l.indexOf("en_gb")>=0) s += 50;
-      if (n.indexOf("uk")>=0 || n.indexOf("british")>=0) s += 30;
-      if (n.indexOf("daniel")>=0 || n.indexOf("george")>=0 || n.indexOf("arthur")>=0 || n.indexOf("rishi")>=0) s += 25;
-      if (n.indexOf("male")>=0 || n.indexOf("uomo")>=0) s += 15;
-      if (l.indexOf("it")===0) s += 8;
+      if (l.indexOf("it")===0) s += 80;
+      if (n.indexOf("italian")>=0 || n.indexOf("italiano")>=0) s += 40;
+      if (n.indexOf("alice")>=0 || n.indexOf("federica")>=0 || n.indexOf("luca")>=0 || n.indexOf("paola")>=0) s += 20;
+      if (n.indexOf("male")>=0 || n.indexOf("uomo")>=0 || n.indexOf("luca")>=0) s += 15;
+      if (n.indexOf("siri")>=0) s += 10;
       if (n.indexOf("google")>=0) s += 5;
       return s;
     };
@@ -114,10 +114,10 @@
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(cleanSpeak(text));
-      if (jarvisVoice) { u.voice = jarvisVoice; u.lang = jarvisVoice.lang; }
-      else { u.lang = "en-GB"; }
+      u.lang = "it-IT";
+      if (jarvisVoice) u.voice = jarvisVoice;
       u.rate = 0.92;
-      u.pitch = 0.78;
+      u.pitch = 0.82;
       u.volume = 1;
       window.speechSynthesis.speak(u);
     }catch(e){}
@@ -129,13 +129,13 @@
   function addLog(who,text){ const d=document.createElement("div"); d.className=who; d.textContent=(who==="user"?"Tu: ":"Jarvis: ")+text; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; }
   async function fetchJson(url,opts,ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(), ms||25000); try{ return await fetch(url, Object.assign({signal:c.signal}, opts)); } finally{ clearTimeout(t); } }
   async function wake(){ for(const base of BACKENDS){ try{ const r=await fetchJson(base+"/health",{method:"GET"},12000); if(r&&r.ok){ BACKEND=base; setOnline(true); return true; } }catch(e){} try{ const r2=await fetchJson(base+"/",{method:"GET"},12000); if(r2&&r2.ok){ BACKEND=base; setOnline(true); return true; } }catch(e){} } setOnline(false); return false; }
-  async function askBrain(text){ addLog("user",text); brainEl.textContent="pensando..."; let last=null; for(let i=0;i<3;i++){ try{ await wake(); const res=await fetchJson(BACKEND+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})},28000); if(!res.ok) throw new Error("HTTP "+res.status); const data=await res.json(); const reply=data.risposta||data.reply||data.response||JSON.stringify(data); addLog("jarvis",reply); speak(reply); setOnline(true); return; }catch(e){ last=e; } } addLog("jarvis","Cervello in riscaldamento. Riprova tra 20 secondi."); speak("Systems warming up, sir."); setOnline(false); console.error(last); }
+  async function askBrain(text){ addLog("user",text); brainEl.textContent="pensando..."; let last=null; for(let i=0;i<3;i++){ try{ await wake(); const res=await fetchJson(BACKEND+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})},28000); if(!res.ok) throw new Error("HTTP "+res.status); const data=await res.json(); const reply=data.risposta||data.reply||data.response||JSON.stringify(data); addLog("jarvis",reply); speak(reply); setOnline(true); return; }catch(e){ last=e; } } addLog("jarvis","Cervello in riscaldamento. Riprova tra 20 secondi."); speak("Sistemi in riscaldamento, signore."); setOnline(false); console.error(last); }
   function send(){ const text=inputEl.value.trim(); if(!text) return; inputEl.value=""; askBrain(text); }
   btnSend.addEventListener("click",send);
   inputEl.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); send(); } });
   btnMic.addEventListener("click",function(){ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){ brainEl.textContent="mic non supportato"; return;} if(!recognition){ recognition=new SR(); recognition.lang="it-IT"; recognition.continuous=false; recognition.onresult=function(e){ inputEl.value=e.results[0][0].transcript; send(); }; recognition.onerror=recognition.onend=function(){ listening=false; btnMic.classList.remove("active"); }; } if(!listening){ listening=true; btnMic.classList.add("active"); try{recognition.start();}catch(e){} } else { recognition.stop(); listening=false; btnMic.classList.remove("active"); } });
   document.getElementById("btnCam").addEventListener("click",function(){ addLog("jarvis","Camera non ancora collegata su questo dispositivo."); });
-  setTimeout(function(){ addLog("jarvis","Sistemi online. A disposizione, signore."); speak("Systems online. At your service, sir."); wake(); },500);
+  setTimeout(function(){ addLog("jarvis","Sistemi online. A disposizione, signore."); speak("Sistemi online. A disposizione, signore."); wake(); },500);
   setInterval(wake,180000);
   setTimeout(function(){ inputEl.focus(); },700);
 })();

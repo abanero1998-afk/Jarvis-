@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="JARVIS">
 <title>JARVIS · Teste Matte</title>
 <style>
 :root{--bg:#06070a;--grid:rgba(45,166,176,.08);--teal:#2da6b0;--teal-l:#5fd8e0;--glow:rgba(45,166,176,.6);--ink:#e8f4f4;--muted:#7a8f92}
@@ -18,11 +17,9 @@ body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gr
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .center{position:absolute;inset:0 0 280px 0;display:flex;align-items:center;justify-content:center}
 .ring-wrap{position:relative;width:200px;height:200px}
-.ring{width:100%;height:100%;border-radius:50%;border:2px solid var(--teal);box-shadow:0 0 20px var(--glow),0 0 60px rgba(45,166,176,.25),inset 0 0 30px rgba(45,166,176,.15);animation:spin 12s linear infinite}
-.ring::before{content:'';position:absolute;inset:14px;border-radius:50%;border:1px solid rgba(95,216,224,.4)}
-.ring::after{content:'';position:absolute;inset:-8px;border-radius:50%;border:1px dashed rgba(45,166,176,.3);animation:spin 20s linear infinite reverse}
+.ring{width:100%;height:100%;border-radius:50%;border:2px solid var(--teal);box-shadow:0 0 20px var(--glow),inset 0 0 30px rgba(45,166,176,.15);animation:spin 12s linear infinite}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;pointer-events:none}
+.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
 .ring-label b{font-size:28px;letter-spacing:8px;color:var(--teal-l);text-shadow:0 0 24px var(--glow)}
 .ring-label span{font-size:13px;letter-spacing:3px;color:var(--muted)}
 .chat-panel{position:absolute;bottom:76px;left:10px;right:10px;max-width:460px;margin:0 auto;height:230px;background:rgba(11,13,17,.94);border:1px solid rgba(45,166,176,.35);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;z-index:30}
@@ -32,9 +29,9 @@ body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gr
 .chat-log .jarvis{color:var(--teal-l);margin-bottom:12px;white-space:pre-wrap}
 .chat-input-row{display:flex;border-top:1px solid rgba(45,166,176,.15)}
 .chat-input-row input{flex:1;background:transparent;border:none;padding:14px;color:var(--ink);font-size:15px;outline:none}
-.chat-input-row button{background:transparent;border:none;color:var(--teal);padding:0 16px;cursor:pointer;font-size:18px}
-.controls{position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:center;gap:12px;z-index:40}
-.btn{padding:10px 16px;border-radius:99px;border:1px solid rgba(45,166,176,.4);background:rgba(45,166,176,.12);color:var(--teal-l);font-size:12px;letter-spacing:1px;cursor:pointer}
+.chat-input-row button{background:transparent;border:none;color:var(--teal);padding:0 16px;font-size:18px}
+.controls{position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:40}
+.btn{padding:10px 14px;border-radius:99px;border:1px solid rgba(45,166,176,.4);background:rgba(45,166,176,.12);color:var(--teal-l);font-size:12px;letter-spacing:1px;cursor:pointer}
 .btn.mic.active{background:rgba(226,87,76,.25);border-color:#e2574c;color:#ff8a80}
 </style></head><body>
 <div class="topbar"><div class="brand">TESTE MATTE · JARVIS</div><div class="status"><span class="dot"></span> ONLINE</div></div>
@@ -42,7 +39,11 @@ body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gr
 <div class="chat-panel"><div class="chat-header"><span>CHAT</span><span id="brainStatus">operativo</span></div>
 <div class="chat-log" id="chatLog"></div>
 <div class="chat-input-row"><input id="chatInput" placeholder="Parla con Jarvis..." autocomplete="off"><button id="btnSend">➤</button></div></div>
-<div class="controls"><button class="btn" id="btnCam">CAMERA</button><button class="btn mic" id="btnMic">MIC</button></div>
+<div class="controls">
+<button class="btn" id="btnCam">CAMERA</button>
+<button class="btn mic" id="btnMic">MIC</button>
+<button class="btn" id="btnRep">REPORT</button>
+</div>
 <script>
 (function(){
   const API=window.location.origin;
@@ -54,27 +55,16 @@ body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gr
   function tick(){clockEl.textContent=new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});}
   setInterval(tick,1000);tick();
   function addLog(who,text){const d=document.createElement("div");d.className=who;d.textContent=(who==="user"?"Tu: ":"Jarvis: ")+text;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;}
-  function cleanSpeak(text){let t=String(text||"").replace(/\*\*/g,"").replace(/ANALISI\s*:/gi,"").replace(/AZIONE\s*:/gi,"").replace(/RISULTATO\s*:/gi,"");t=t.replace(/\n+/g,". ").replace(/\s+/g," ").trim();return t.slice(0,280);}
-  function fallbackSpeak(text){try{if(!window.speechSynthesis)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(cleanSpeak(text));u.lang="it-IT";u.rate=0.92;u.pitch=0.82;window.speechSynthesis.speak(u);}catch(e){}}
-  async function speak(text){
-    const line=cleanSpeak(text);
-    try{
-      if(audioObj){audioObj.pause(); audioObj.src="";}
-      const res=await fetch(API+"/api/speak",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:line})});
-      if(!res.ok) throw new Error("tts");
-      const blob=await res.blob();
-      const url=URL.createObjectURL(blob);
-      audioObj=new Audio(url);
-      audioObj.play().catch(function(){fallbackSpeak(line);});
-    }catch(e){fallbackSpeak(line);}
-  }
-  async function ask(text){addLog("user",text);brainEl.textContent="pensando...";try{const res=await fetch(API+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})});const data=await res.json();const reply=data.risposta||data.reply||"Ricevuto, signore.";addLog("jarvis",reply);speak(reply);brainEl.textContent="operativo";}catch(e){addLog("jarvis","Sistemi locali attivi. Riprova.");speak("Sistemi locali attivi.");brainEl.textContent="operativo";}}
-  function send(){const text=inputEl.value.trim();if(!text)return;inputEl.value="";ask(text);}
-  document.getElementById("btnSend").addEventListener("click",send);
-  inputEl.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();send();}});
-  document.getElementById("btnMic").addEventListener("click",function(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){addLog("jarvis","Microfono non supportato.");return;}if(!recognition){recognition=new SR();recognition.lang="it-IT";recognition.continuous=false;recognition.onresult=function(e){inputEl.value=e.results[0][0].transcript;send();};recognition.onerror=recognition.onend=function(){listening=false;document.getElementById("btnMic").classList.remove("active");};}if(!listening){listening=true;document.getElementById("btnMic").classList.add("active");try{recognition.start();}catch(e){}}else{recognition.stop();listening=false;document.getElementById("btnMic").classList.remove("active");}});
-  document.getElementById("btnCam").addEventListener("click",async function(){try{const s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});s.getTracks().forEach(t=>t.stop());addLog("jarvis","Camera raggiungibile, signore.");speak("Camera raggiungibile, signore.");}catch(e){addLog("jarvis","Permesso camera negato.");speak("Permesso camera negato.");}});
-  setTimeout(function(){addLog("jarvis","Sistemi online. A disposizione, signore.");speak("Sistemi online. A disposizione, signore.");},500);
-  setTimeout(function(){inputEl.focus();},700);
+  function cleanSpeak(text){return String(text||"").replace(/\*\*/g,"").replace(/ANALISI\s*:/gi,"").replace(/AZIONE\s*:/gi,"").replace(/RISULTATO\s*:/gi,"").replace(/\s+/g," ").trim().slice(0,280);}
+  function fallbackSpeak(text){try{if(!window.speechSynthesis)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(cleanSpeak(text));u.lang="it-IT";window.speechSynthesis.speak(u);}catch(e){}}
+  async function speak(text){const line=cleanSpeak(text);try{if(audioObj){audioObj.pause();}const res=await fetch(API+"/api/speak",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:line})});if(!res.ok)throw 0;audioObj=new Audio(URL.createObjectURL(await res.blob()));audioObj.play().catch(function(){fallbackSpeak(line);});}catch(e){fallbackSpeak(line);}}
+  async function ask(text){addLog("user",text);if(/report|schema|giornalier/i.test(text)) location.href="/report";brainEl.textContent="pensando...";try{const res=await fetch(API+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})});const data=await res.json();const reply=data.risposta||"Ricevuto, signore.";addLog("jarvis",reply);speak(reply);brainEl.textContent="operativo";}catch(e){addLog("jarvis","Sistemi locali attivi.");speak("Sistemi locali attivi.");}}
+  function send(){const t=inputEl.value.trim();if(!t)return;inputEl.value="";ask(t);}
+  document.getElementById("btnSend").onclick=send;
+  inputEl.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();send();}});
+  document.getElementById("btnRep").onclick=function(){location.href="/report";};
+  document.getElementById("btnMic").onclick=function(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;if(!recognition){recognition=new SR();recognition.lang="it-IT";recognition.onresult=function(e){inputEl.value=e.results[0][0].transcript;send();};recognition.onend=function(){listening=false;document.getElementById("btnMic").classList.remove("active");};}if(!listening){listening=true;document.getElementById("btnMic").classList.add("active");recognition.start();}else recognition.stop();};
+  document.getElementById("btnCam").onclick=async function(){try{const s=await navigator.mediaDevices.getUserMedia({video:true});s.getTracks().forEach(t=>t.stop());speak("Camera raggiungibile, signore.");}catch(e){speak("Permesso camera negato.");}};
+  setTimeout(function(){addLog("jarvis","Sistemi online. A disposizione, signore.");speak("Sistemi online. A disposizione, signore.");},400);
 })();
 </script></body></html>

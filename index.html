@@ -55,7 +55,7 @@
     flex-direction: column; gap: 24px;
   }
   .ring-wrap {
-    position: relative; width: 220px; height: 220px;
+    position: relative; width: 200px; height: 200px;
   }
   .ring {
     width: 100%; height: 100%;
@@ -92,40 +92,27 @@
     pointer-events: none;
   }
   .ring-label b {
-    font-size: 28px; letter-spacing: 6px;
+    font-size: 26px; letter-spacing: 6px;
     color: var(--teal-l);
     text-shadow: 0 0 20px var(--glow);
   }
   .ring-label span {
     font-size: 11px; letter-spacing: 2px; color: var(--muted);
   }
-  .cam-box {
-    position: absolute; top: 80px; left: 24px;
-    width: 180px; height: 120px;
-    border: 1px solid rgba(45,166,176,0.4);
-    border-radius: 8px;
-    overflow: hidden;
-    background: #0b0d11;
-    display: none;
-    box-shadow: 0 0 20px rgba(0,0,0,0.5);
-  }
-  .cam-box video {
-    width: 100%; height: 100%; object-fit: cover;
-  }
-  .cam-label {
-    position: absolute; bottom: 4px; left: 6px;
-    font-size: 10px; color: var(--teal-l); letter-spacing: 1px;
-  }
   .chat-panel {
-    position: absolute; top: 80px; right: 24px;
-    width: 280px; max-height: 320px;
-    background: rgba(11,13,17,0.85);
-    border: 1px solid rgba(45,166,176,0.25);
-    border-radius: 12px;
+    position: absolute;
+    bottom: 90px; left: 12px; right: 12px;
+    max-width: 420px;
+    margin: 0 auto;
+    height: 220px;
+    background: rgba(11,13,17,0.92);
+    border: 1px solid rgba(45,166,176,0.35);
+    border-radius: 14px;
     backdrop-filter: blur(12px);
-    display: none;
+    display: flex;
     flex-direction: column;
     overflow: hidden;
+    z-index: 30;
   }
   .chat-header {
     padding: 10px 14px;
@@ -134,54 +121,50 @@
   }
   .chat-log {
     flex: 1; overflow-y: auto; padding: 12px;
-    font-size: 13px; line-height: 1.45;
+    font-size: 14px; line-height: 1.5;
   }
-  .chat-log .user { color: var(--muted); margin-bottom: 6px; }
-  .chat-log .jarvis { color: var(--teal-l); margin-bottom: 12px; }
+  .chat-log .user { color: var(--muted); margin-bottom: 8px; }
+  .chat-log .jarvis { color: var(--teal-l); margin-bottom: 12px; font-weight: 500; }
   .chat-input-row {
     display: flex; border-top: 1px solid rgba(45,166,176,0.15);
   }
   .chat-input-row input {
     flex: 1; background: transparent; border: none;
-    padding: 12px; color: var(--ink); font-size: 13px; outline: none;
+    padding: 14px; color: var(--ink); font-size: 15px; outline: none;
   }
   .chat-input-row button {
     background: transparent; border: none; color: var(--teal);
-    padding: 0 14px; cursor: pointer; font-size: 16px;
+    padding: 0 16px; cursor: pointer; font-size: 18px;
   }
   .controls {
-    position: absolute; bottom: 40px; left: 0; right: 0;
-    display: flex; justify-content: center; gap: 16px;
+    position: absolute; bottom: 20px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 12px;
+    z-index: 40;
   }
   .btn {
-    padding: 12px 22px;
+    padding: 11px 18px;
     border-radius: 99px;
     border: 1px solid rgba(45,166,176,0.4);
-    background: rgba(45,166,176,0.1);
+    background: rgba(45,166,176,0.12);
     color: var(--teal-l);
-    font-size: 13px; letter-spacing: 1px;
+    font-size: 12px; letter-spacing: 1px;
     cursor: pointer;
-    transition: all 0.2s;
   }
-  .btn:hover, .btn.active {
-    background: rgba(45,166,176,0.25);
-    box-shadow: 0 0 20px var(--glow);
+  .btn.active {
+    background: rgba(45,166,176,0.3);
+    box-shadow: 0 0 16px var(--glow);
   }
   .btn.mic.active {
-    background: rgba(226,87,76,0.2);
+    background: rgba(226,87,76,0.25);
     border-color: #e2574c;
     color: #ff8a80;
   }
   .status-text {
-    position: absolute; bottom: 110px; left: 0; right: 0;
+    position: absolute; bottom: 70px; left: 0; right: 0;
     text-align: center;
-    font-size: 14px; color: var(--muted);
+    font-size: 13px; color: var(--muted);
     letter-spacing: 1px;
-    min-height: 20px;
-  }
-  @media (max-width: 700px) {
-    .cam-box, .chat-panel { display: none !important; }
-    .ring-wrap { width: 180px; height: 180px; }
+    z-index: 20;
   }
 </style>
 </head>
@@ -189,20 +172,6 @@
   <div class="topbar">
     <div class="brand">TESTE MATTE · JARVIS</div>
     <div class="status"><span class="dot"></span> ONLINE</div>
-  </div>
-
-  <div class="cam-box" id="camBox">
-    <video id="camVideo" autoplay muted playsinline></video>
-    <div class="cam-label">CAMERA</div>
-  </div>
-
-  <div class="chat-panel" id="chatPanel">
-    <div class="chat-header">CHAT</div>
-    <div class="chat-log" id="chatLog"></div>
-    <div class="chat-input-row">
-      <input id="chatInput" placeholder="Scrivi o parla..." autocomplete="off">
-      <button onclick="sendText()">➤</button>
-    </div>
   </div>
 
   <div class="center">
@@ -215,197 +184,152 @@
     </div>
   </div>
 
-  <div class="status-text" id="statusText">Di' "Okay Jarvis" oppure clicca il microfono</div>
+  <div class="status-text" id="statusText">Scrivi qui sotto o di' "Okay Jarvis"</div>
+
+  <div class="chat-panel" id="chatPanel">
+    <div class="chat-header">CHAT</div>
+    <div class="chat-log" id="chatLog"></div>
+    <div class="chat-input-row">
+      <input id="chatInput" placeholder="Scrivi un messaggio..." autocomplete="off">
+      <button id="btnSend">➤</button>
+    </div>
+  </div>
 
   <div class="controls">
-    <button class="btn" id="btnCam" onclick="toggleCam()">CAMERA</button>
-    <button class="btn mic" id="btnMic" onclick="toggleMic()">MIC</button>
-    <button class="btn" id="btnChat" onclick="toggleChat()">CHAT</button>
+    <button class="btn" id="btnCam">CAMERA</button>
+    <button class="btn mic" id="btnMic">MIC</button>
   </div>
 
 <script>
-  const BACKEND = "https://jarvis-teste-matte.onrender.com";
+(function() {
+  const statusEl = document.getElementById("statusText");
+  const logEl = document.getElementById("chatLog");
+  const inputEl = document.getElementById("chatInput");
+  const btnSend = document.getElementById("btnSend");
+  const btnMic = document.getElementById("btnMic");
+  const btnCam = document.getElementById("btnCam");
+  const timeEl = document.getElementById("timeLabel");
+
   let listening = false;
-  let camOn = false;
-  let chatOn = false;
   let recognition = null;
-  let synth = window.speechSynthesis;
 
-  function updateClock() {
+  function tick() {
     const now = new Date();
-    document.getElementById("timeLabel").textContent =
-      now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    timeEl.textContent = now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
   }
-  setInterval(updateClock, 1000);
-  updateClock();
-
-  function speak(text) {
-    if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "it-IT";
-    u.rate = 1.05;
-    u.pitch = 0.95;
-    const voices = synth.getVoices();
-    const it = voices.find(v => v.lang.startsWith("it") && v.name.toLowerCase().includes("male"))
-            || voices.find(v => v.lang.startsWith("it"));
-    if (it) u.voice = it;
-    synth.speak(u);
-    setStatus(text);
-  }
-
-  function setStatus(t) {
-    document.getElementById("statusText").textContent = t;
-  }
+  setInterval(tick, 1000);
+  tick();
 
   function addLog(who, text) {
-    const log = document.getElementById("chatLog");
     const div = document.createElement("div");
     div.className = who;
     div.textContent = (who === "user" ? "Tu: " : "Jarvis: ") + text;
-    log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
   }
 
-  function getLocalReply(text) {
-    const t = text.toLowerCase();
-    if (t.includes("camera") || t.includes("telecamera")) {
-      if (!camOn) toggleCam();
-      return "Apro la camera.";
-    }
-    if (t.includes("chat") || t.includes("messaggi")) {
-      if (!chatOn) toggleChat();
-      return "Apro la chat.";
-    }
-    if (t.includes("ciao") || t.includes("sei lì") || t.includes("are you there") || t.includes("sei li")) {
+  function speak(text) {
+    try {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "it-IT";
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+    statusEl.textContent = text;
+  }
+
+  function reply(text) {
+    const t = (text || "").toLowerCase();
+    if (t.includes("ciao") || t.includes("sei lì") || t.includes("sei li") || t.includes("are you there")) {
       return "A disposizione, signore.";
     }
     if (t.includes("pronto") || t.includes("ready")) {
       return "Sono pronto, signore.";
     }
-    if (t.includes("ordini") || t.includes("comanda") || t.includes("tavolo")) {
-      return "Collegamento gestionale in corso. Dimmi pure il tavolo e i piatti.";
+    if (t.includes("camera") || t.includes("telecamera")) {
+      return "Apro la camera.";
     }
     if (t.includes("grazie")) {
       return "Di nulla, signore.";
     }
+    if (t.includes("ordini") || t.includes("comanda") || t.includes("tavolo")) {
+      return "Dimmi pure il tavolo e i piatti da inviare.";
+    }
     return "Ricevuto. In che modo posso assisterla?";
   }
 
-  async function askJarvis(text) {
-    if (!text || !text.trim()) return;
-    addLog("user", text);
-    setStatus("Elaboro...");
-    let reply = getLocalReply(text);
-    try {
-      const res = await fetch(BACKEND + "/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-      });
-      if (res && res.ok) {
-        const data = await res.json();
-        if (data.reply || data.response) reply = data.reply || data.response;
-      }
-    } catch (e) {}
-    addLog("jarvis", reply);
-    speak(reply);
-  }
-
-  function initRecognition() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      setStatus("Riconoscimento vocale non supportato su questo browser");
-      return null;
-    }
-    const r = new SR();
-    r.lang = "it-IT";
-    r.continuous = true;
-    r.interimResults = false;
-    r.onresult = (e) => {
-      const last = e.results[e.results.length - 1];
-      if (!last.isFinal) return;
-      const text = last[0].transcript.trim();
-      const lower = text.toLowerCase();
-      if (lower.includes("okay jarvis") || lower.includes("ok jarvis") || lower.includes("ehi jarvis") || lower.startsWith("jarvis")) {
-        let cmd = text.replace(/okay jarvis|ok jarvis|ehi jarvis|jarvis/gi, "").trim();
-        if (!cmd) { speak("A disposizione, signore."); return; }
-        askJarvis(cmd);
-      } else if (listening) {
-        askJarvis(text);
-      }
-    };
-    r.onerror = (e) => { if (e.error === "not-allowed") setStatus("Permesso microfono negato"); };
-    r.onend = () => { if (listening) { try { r.start(); } catch (_) {} } };
-    return r;
-  }
-
-  function toggleMic() {
-    if (!recognition) recognition = initRecognition();
-    if (!recognition) return;
-    listening = !listening;
-    const btn = document.getElementById("btnMic");
-    if (listening) {
-      btn.classList.add("active");
-      try { recognition.start(); } catch (_) {}
-      setStatus("In ascolto... Di' \"Okay Jarvis\"");
-      speak("In ascolto.");
-    } else {
-      btn.classList.remove("active");
-      recognition.stop();
-      setStatus("Microfono spento");
-    }
-  }
-
-  async function toggleCam() {
-    const box = document.getElementById("camBox");
-    const video = document.getElementById("camVideo");
-    if (!camOn) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        video.srcObject = stream;
-        box.style.display = "block";
-        camOn = true;
-        document.getElementById("btnCam").classList.add("active");
-        speak("Camera attiva.");
-      } catch (e) {
-        speak("Impossibile accedere alla camera.");
-        setStatus("Camera non disponibile");
-      }
-    } else {
-      const stream = video.srcObject;
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      video.srcObject = null;
-      box.style.display = "none";
-      camOn = false;
-      document.getElementById("btnCam").classList.remove("active");
-      speak("Camera disattivata.");
-    }
-  }
-
-  function toggleChat() {
-    chatOn = !chatOn;
-    document.getElementById("chatPanel").style.display = chatOn ? "flex" : "none";
-    document.getElementById("btnChat").classList.toggle("active", chatOn);
-    if (chatOn) document.getElementById("chatInput").focus();
-  }
-
-  function sendText() {
-    const input = document.getElementById("chatInput");
-    const text = input.value.trim();
+  function send() {
+    const text = inputEl.value.trim();
     if (!text) return;
-    input.value = "";
-    askJarvis(text);
+    inputEl.value = "";
+    addLog("user", text);
+    statusEl.textContent = "Elaboro...";
+    setTimeout(function() {
+      const r = reply(text);
+      addLog("jarvis", r);
+      speak(r);
+    }, 300);
   }
 
-  document.getElementById("chatInput").addEventListener("keydown", e => {
-    if (e.key === "Enter") sendText();
+  btnSend.addEventListener("click", send);
+  inputEl.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      send();
+    }
   });
 
-  window.speechSynthesis.onvoiceschanged = () => {};
-  setTimeout(() => {
+  btnMic.addEventListener("click", function() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      statusEl.textContent = "Microfono non supportato su questo browser";
+      return;
+    }
+    if (!recognition) {
+      recognition = new SR();
+      recognition.lang = "it-IT";
+      recognition.continuous = false;
+      recognition.onresult = function(e) {
+        const text = e.results[0][0].transcript;
+        inputEl.value = text;
+        send();
+      };
+      recognition.onerror = function() {
+        statusEl.textContent = "Errore microfono";
+        listening = false;
+        btnMic.classList.remove("active");
+      };
+      recognition.onend = function() {
+        listening = false;
+        btnMic.classList.remove("active");
+      };
+    }
+    if (!listening) {
+      listening = true;
+      btnMic.classList.add("active");
+      statusEl.textContent = "Parla ora...";
+      try { recognition.start(); } catch (e) {}
+    } else {
+      recognition.stop();
+      listening = false;
+      btnMic.classList.remove("active");
+    }
+  });
+
+  btnCam.addEventListener("click", function() {
+    statusEl.textContent = "Camera non ancora collegata su mobile";
+    speak("Camera non disponibile su questo dispositivo.");
+  });
+
+  setTimeout(function() {
+    addLog("jarvis", "Sistemi online. A disposizione, signore.");
     speak("Sistemi online. A disposizione, signore.");
-  }, 800);
+  }, 600);
+
+  setTimeout(function() { inputEl.focus(); }, 800);
+})();
 </script>
 </body>
 </html>

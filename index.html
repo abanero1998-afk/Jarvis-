@@ -41,7 +41,7 @@ body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gr
 <div class="center"><div class="ring-wrap"><div class="ring"></div><div class="ring-label"><b>JARVIS</b><span id="clock">--:--</span></div></div></div>
 <div class="chat-panel"><div class="chat-header"><span>CHAT</span><span id="brainStatus">operativo</span></div>
 <div class="chat-log" id="chatLog"></div>
-<div class="chat-input-row"><input id="chatInput" placeholder="Es. apri tavolo T22 · incassi oggi" autocomplete="off"><button id="btnSend">➤</button></div></div>
+<div class="chat-input-row"><input id="chatInput" placeholder="Parla con Jarvis..." autocomplete="off"><button id="btnSend">➤</button></div></div>
 <div class="controls"><button class="btn" id="btnCam">CAMERA</button><button class="btn mic" id="btnMic">MIC</button></div>
 <script>
 (function(){
@@ -50,21 +50,31 @@ body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gr
   const inputEl=document.getElementById("chatInput");
   const brainEl=document.getElementById("brainStatus");
   const clockEl=document.getElementById("clock");
-  let listening=false,recognition=null,jarvisVoice=null;
+  let listening=false,recognition=null,audioObj=null;
   function tick(){clockEl.textContent=new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});}
   setInterval(tick,1000);tick();
   function addLog(who,text){const d=document.createElement("div");d.className=who;d.textContent=(who==="user"?"Tu: ":"Jarvis: ")+text;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;}
-  function pickVoice(){const v=window.speechSynthesis?window.speechSynthesis.getVoices():[];v.sort(function(a,b){return ((b.lang||"").indexOf("it")===0?1:0)-((a.lang||"").indexOf("it")===0?1:0);});jarvisVoice=v[0]||null;}
-  if(window.speechSynthesis){pickVoice();window.speechSynthesis.onvoiceschanged=pickVoice;}
-  function cleanSpeak(text){let t=String(text||"").replace(/\*\*/g,"").replace(/ANALISI\s*:/gi,"").replace(/AZIONE\s*:/gi,"").replace(/RISULTATO\s*:/gi,"");t=t.replace(/\n+/g,". ").replace(/\s+/g," ").trim();return t.split(/(?<=[.!?])\s+/).slice(0,2).join(" ")||t.slice(0,180);}
-  function speak(text){try{if(!window.speechSynthesis)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(cleanSpeak(text));u.lang="it-IT";if(jarvisVoice)u.voice=jarvisVoice;u.rate=0.92;u.pitch=0.82;window.speechSynthesis.speak(u);}catch(e){}}
+  function cleanSpeak(text){let t=String(text||"").replace(/\*\*/g,"").replace(/ANALISI\s*:/gi,"").replace(/AZIONE\s*:/gi,"").replace(/RISULTATO\s*:/gi,"");t=t.replace(/\n+/g,". ").replace(/\s+/g," ").trim();return t.slice(0,280);}
+  function fallbackSpeak(text){try{if(!window.speechSynthesis)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(cleanSpeak(text));u.lang="it-IT";u.rate=0.92;u.pitch=0.82;window.speechSynthesis.speak(u);}catch(e){}}
+  async function speak(text){
+    const line=cleanSpeak(text);
+    try{
+      if(audioObj){audioObj.pause(); audioObj.src="";}
+      const res=await fetch(API+"/api/speak",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:line})});
+      if(!res.ok) throw new Error("tts");
+      const blob=await res.blob();
+      const url=URL.createObjectURL(blob);
+      audioObj=new Audio(url);
+      audioObj.play().catch(function(){fallbackSpeak(line);});
+    }catch(e){fallbackSpeak(line);}
+  }
   async function ask(text){addLog("user",text);brainEl.textContent="pensando...";try{const res=await fetch(API+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})});const data=await res.json();const reply=data.risposta||data.reply||"Ricevuto, signore.";addLog("jarvis",reply);speak(reply);brainEl.textContent="operativo";}catch(e){addLog("jarvis","Sistemi locali attivi. Riprova.");speak("Sistemi locali attivi.");brainEl.textContent="operativo";}}
   function send(){const text=inputEl.value.trim();if(!text)return;inputEl.value="";ask(text);}
   document.getElementById("btnSend").addEventListener("click",send);
   inputEl.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();send();}});
   document.getElementById("btnMic").addEventListener("click",function(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){addLog("jarvis","Microfono non supportato.");return;}if(!recognition){recognition=new SR();recognition.lang="it-IT";recognition.continuous=false;recognition.onresult=function(e){inputEl.value=e.results[0][0].transcript;send();};recognition.onerror=recognition.onend=function(){listening=false;document.getElementById("btnMic").classList.remove("active");};}if(!listening){listening=true;document.getElementById("btnMic").classList.add("active");try{recognition.start();}catch(e){}}else{recognition.stop();listening=false;document.getElementById("btnMic").classList.remove("active");}});
   document.getElementById("btnCam").addEventListener("click",async function(){try{const s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});s.getTracks().forEach(t=>t.stop());addLog("jarvis","Camera raggiungibile, signore.");speak("Camera raggiungibile, signore.");}catch(e){addLog("jarvis","Permesso camera negato.");speak("Permesso camera negato.");}});
-  setTimeout(function(){addLog("jarvis","Sistemi online. A disposizione, signore.");speak("Sistemi online. A disposizione, signore.");},400);
+  setTimeout(function(){addLog("jarvis","Sistemi online. A disposizione, signore.");speak("Sistemi online. A disposizione, signore.");},500);
   setTimeout(function(){inputEl.focus();},700);
 })();
 </script></body></html>

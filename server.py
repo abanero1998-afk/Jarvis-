@@ -76,7 +76,7 @@ def load_menu():
     return menu
 def norm(s):
     s = (s or "").lower()
-    s = s.replace("à","a").replace("è","e").replace("é","e").replace("ì","i").replace("ò","o").replace("ù","u")
+    s = s.replace("a","a")
     return re.sub(r"[^a-z0-9]+", " ", s).strip()
 def search_product(q):
     nq = norm(q)
@@ -136,7 +136,6 @@ def add_item(tid, tname, product, qty=1):
 def split_products(chunk):
     chunk = re.sub(r"\bal tavolo\b.*", "", chunk, flags=re.I)
     chunk = re.sub(r"\btavolo\s*\d+\b", "", chunk, flags=re.I)
-    chunk = re.sub(r"\bt\s*\d+\b", "", chunk, flags=re.I)
     parts = re.split(r"\s+e\s+|,\s*", chunk)
     out = []
     for p in parts:
@@ -150,15 +149,13 @@ def snapshot():
         paid = [o for o in today if o.get("status") == "pagato" or o.get("paidAt")]
         attesa = [o for o in orders if o.get("status") in ("inviato","in_preparazione","pronto")]
         tot = sum(float(o.get("total") or 0) for o in paid)
-        menu = ", ".join(p["name"] for p in load_menu()[:12])
-        return f"Incasso oggi {tot:.2f} euro, {len(paid)} scontrini. Comande aperte {len(attesa)}. Menu: {menu}."
+        return f"Incasso oggi {tot:.2f} euro, {len(paid)} scontrini. Comande aperte {len(attesa)}."
     except Exception as e:
-        return "Gestionale non letto: " + str(e)[:80]
+        return "Gestionale non letto."
 def cassiere(text):
     t = (text or "").strip(); low = t.lower()
     data = load_orders()
-    if fix_stuck(data):
-        save_orders(data)
+    if fix_stuck(data): save_orders(data)
     if any(k in low for k in ("incass", "fatturat")) or ("quanto" in low and "oggi" in low):
         orders = load_orders()
         today = [o for o in orders if same_day(o.get("createdAt")) or same_day(o.get("paidAt"))]
@@ -173,8 +170,7 @@ def cassiere(text):
     want_open = bool(re.search(r"\b(aggiungi tavolo|apri tavolo|apri t\s*\d+|tavolo\s*\d+)\b", low))
     want_add = bool(re.search(r"\b(aggiungi|metti|manda|invia)\b", low)) and bool(m_tav)
     tid = tname = None
-    if m_tav:
-        tid, tname = table_id(m_tav.group(0))
+    if m_tav: tid, tname = table_id(m_tav.group(0))
     if want_open and tid and not re.search(r"aggiungi .+\s+(al\s+)?tavolo", low):
         only_table = not re.search(r"aggiungi\s+(?!tavolo)([a-z].+)", low)
         if only_table or low.startswith("apri") or low.startswith("aggiungi tavolo"):
@@ -182,68 +178,58 @@ def cassiere(text):
     if want_add and tid:
         phrase = re.sub(r"aggiungi\s+tavolo\s+\d+,?\s*", "", t, flags=re.I)
         phrase = re.sub(r"\b(al\s+)?tavolo\s*\d+\b", "", phrase, flags=re.I)
-        phrase = re.sub(r"\bt\s*\d+\b", "", phrase, flags=re.I)
         names = split_products(phrase)
-        if not names:
-            return f"Tavolo {tname} pronto. Dimmi i prodotti."
+        if not names: return f"Tavolo {tname} pronto. Dimmi i prodotti."
         found, missing = [], []
         for n in names:
             p = search_product(n)
             if p: found.append(p)
             else: missing.append(n)
-        if missing:
-            return "ERRORE: " + ", ".join(missing) + " non trovato nel gestionale. Vuoi che avviso in cucina?"
+        if missing: return "ERRORE: " + ", ".join(missing) + " non trovato nel gestionale. Vuoi che avviso in cucina?"
         lines = []; dests = set(); tot = 0
         for p in found:
             ticket = add_item(tid, tname, p, 1)
             dests.add(ticket.get("destination"))
             tot += float(p["price"])
             lines.append(f"1x {p['name']} ({p['price']:.2f} euro) verso {dest_of(p)}")
-        where = " e ".join(sorted(dests))
-        return f"Inviato a {where}. Tavolo {tname}: " + ", ".join(lines) + f". Totale: {tot:.2f} euro"
-    if want_open and tid:
-        return f"Tavolo {tname} pronto. Dimmi i prodotti."
+        return f"Inviato a {' e '.join(sorted(dests))}. Tavolo {tname}: " + ", ".join(lines) + f". Totale: {tot:.2f} euro"
+    if want_open and tid: return f"Tavolo {tname} pronto. Dimmi i prodotti."
     return None
 def pensa(text):
     c = cassiere(text)
     if c: return c
     ctx = snapshot()
-    if not groq:
-        return "Ricevuto. " + ctx
+    if not groq: return "Ricevuto. " + ctx
     try:
         r = groq.chat.completions.create(model="openai/gpt-oss-20b", messages=[{"role":"system","content": SYS},{"role":"user","content": "[Gestionale]\n" + ctx + "\n\n[Richiesta]\n" + text}], max_tokens=500)
         return r.choices[0].message.content or ("Ricevuto. " + ctx)
     except Exception as e:
         return "Cervello: " + str(e)[:160] + " | " + ctx
 def clean_voice(text):
-    t = str(text or "")
-    t = re.sub(r"\*\*", "", t)
-    t = re.sub(r"ANALISI\s*:", "", t, flags=re.I)
-    t = re.sub(r"AZIONE\s*:", "", t, flags=re.I)
-    t = re.sub(r"RISULTATO\s*:", "", t, flags=re.I)
-    t = re.sub(r"\s+", " ", t).strip()
+    t = re.sub(r"\s+", " ", str(text or ""))
     return t[:280]
 @app.get("/health")
 def health():
-    return {"status":"ok","agent":"Jarvis","voice": ELEVEN_VOICE, "time": datetime.utcnow().isoformat()}
+    return {"status":"ok","agent":"Jarvis","voice": ELEVEN_VOICE}
 @app.get("/")
 def root():
     return FileResponse("index.html") if os.path.exists("index.html") else health()
+@app.get("/report")
+def report_page():
+    if os.path.exists("report.html"): return FileResponse("report.html")
+    return Response(content=b"report.html missing", status_code=500)
+@app.get("/report.html")
+def report_page_html():
+    return report_page()
 @app.post("/api/speak")
 def api_speak(body: SpeakIn):
     text = clean_voice(body.text)
-    if not text:
-        return Response(status_code=400)
+    if not text: return Response(status_code=400)
     payload = json.dumps({"text": text, "model_id": "eleven_multilingual_v2"}).encode()
-    req = urllib.request.Request(
-        f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVEN_VOICE}",
-        data=payload,
-        headers={"xi-api-key": ELEVEN_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"},
-    )
+    req = urllib.request.Request(f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVEN_VOICE}", data=payload, headers={"xi-api-key": ELEVEN_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"})
     try:
         with urllib.request.urlopen(req, timeout=25) as r:
-            audio = r.read()
-        return Response(content=audio, media_type="audio/mpeg")
+            return Response(content=r.read(), media_type="audio/mpeg")
     except Exception as e:
         return Response(content=str(e).encode(), status_code=502)
 @app.get("/api/products/search")

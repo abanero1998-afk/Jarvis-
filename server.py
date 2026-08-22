@@ -3,7 +3,7 @@ import json, os, re, time, urllib.request
 from datetime import datetime, timezone
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 try:
     from groq import Groq
@@ -12,20 +12,18 @@ except ImportError:
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
 SB_URL = os.getenv("SUPABASE_URL", "https://qnpdilurpkjsqloznmko.supabase.co")
 SB_KEY = os.getenv("SUPABASE_KEY", "sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--")
+ELEVEN_KEY = os.getenv("ELEVEN_API_KEY", "sk_daea01152c06405ec898b07cb370c332caad93f03d11f8ca")
+ELEVEN_VOICE = os.getenv("ELEVEN_VOICE_ID", "tkjyl8Joo8r3RALgNJDV")
 GEST = "https://gestionaletestematte.netlify.app/"
-SYS = """Sei Jarvis, AI personale di Teste Matte. Italiano, diretto, stile Iron Man.
-Ruoli: cassiere, stratega ristorante/brand/fattoria, assistente 24h.
-Se la richiesta e un ordine (aggiungi tavolo/prodotto) usa i dati cassa gia eseguiti.
-Su tutto il resto rispondi tu: idee, testi social, menu, fattoria, organizzazione, domande generali.
-Non inventare piatti o prezzi. Se non sai un dato del gestionale dillo.
-Formato breve, sostanza, niente fuffa.
-"""
+SYS = "Sei Jarvis, AI personale di Teste Matte. Italiano, diretto, stile Iron Man. Cassiere sul gestionale, assistente su tutto. Non inventare piatti o prezzi."
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 groq = Groq(api_key=GROQ_API_KEY) if Groq and GROQ_API_KEY else None
 _cache = {"t": 0, "menu": []}
 class ChatIn(BaseModel):
     message: str
+class SpeakIn(BaseModel):
+    text: str = ""
 def hdr(extra=None):
     h = {"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json"}
     if extra: h.update(extra)
@@ -48,7 +46,7 @@ def fix_stuck(data):
     for o in data:
         if o.get("status") == "in_corso":
             if o.get("items"):
-                types = { (i.get("type") or "food") for i in o.get("items") or [] }
+                types = {(i.get("type") or "food") for i in o.get("items") or []}
                 o["status"] = "inviato"
                 o["destination"] = "bar" if types == {"beverage"} else "cucina"
             else:
@@ -74,8 +72,7 @@ def load_menu():
             menu.append({"id": p.get("id"), "name": p.get("name"), "desc": p.get("desc") or "", "price": float(p.get("price") or 0), "type": p.get("type") or "food"})
     except Exception:
         pass
-    _cache["menu"] = menu
-    _cache["t"] = now
+    _cache["menu"] = menu; _cache["t"] = now
     return menu
 def norm(s):
     s = (s or "").lower()
@@ -171,7 +168,7 @@ def cassiere(text):
     if low in ("tavoli", "elenco tavoli", "stato tavoli"):
         opened = [o for o in load_orders() if o.get("status") in ("inviato","in_preparazione","pronto")]
         if not opened: return "Nessun tavolo in attesa."
-        return "In attesa: " + ", ".join(f"{o.get('tableName')} {o.get('destination')} {o.get('total')}€" for o in opened[:20])
+        return "In attesa: " + ", ".join(f"{o.get('tableName')} {o.get('destination')} {o.get('total')}e" for o in opened[:20])
     m_tav = re.search(r"(?:tavolo|t)\s*(\d+)|bancone|dehors\s*(\d+)", low)
     want_open = bool(re.search(r"\b(aggiungi tavolo|apri tavolo|apri t\s*\d+|tavolo\s*\d+)\b", low))
     want_add = bool(re.search(r"\b(aggiungi|metti|manda|invia)\b", low)) and bool(m_tav)
@@ -201,9 +198,9 @@ def cassiere(text):
             ticket = add_item(tid, tname, p, 1)
             dests.add(ticket.get("destination"))
             tot += float(p["price"])
-            lines.append(f"1x {p['name']} ({p['price']:.2f}€) → {dest_of(p)}")
+            lines.append(f"1x {p['name']} ({p['price']:.2f} euro) verso {dest_of(p)}")
         where = " e ".join(sorted(dests))
-        return f"Inviato a {where}. Tavolo {tname}: " + ", ".join(lines) + f". Totale: {tot:.2f}€"
+        return f"Inviato a {where}. Tavolo {tname}: " + ", ".join(lines) + f". Totale: {tot:.2f} euro"
     if want_open and tid:
         return f"Tavolo {tname} pronto. Dimmi i prodotti."
     return None
@@ -214,23 +211,41 @@ def pensa(text):
     if not groq:
         return "Ricevuto. " + ctx
     try:
-        r = groq.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=[
-                {"role":"system","content": SYS},
-                {"role":"user","content": "[Gestionale]\n" + ctx + "\n\n[Richiesta]\n" + text},
-            ],
-            max_tokens=600,
-        )
+        r = groq.chat.completions.create(model="openai/gpt-oss-20b", messages=[{"role":"system","content": SYS},{"role":"user","content": "[Gestionale]\n" + ctx + "\n\n[Richiesta]\n" + text}], max_tokens=500)
         return r.choices[0].message.content or ("Ricevuto. " + ctx)
     except Exception as e:
         return "Cervello: " + str(e)[:160] + " | " + ctx
+def clean_voice(text):
+    t = str(text or "")
+    t = re.sub(r"\*\*", "", t)
+    t = re.sub(r"ANALISI\s*:", "", t, flags=re.I)
+    t = re.sub(r"AZIONE\s*:", "", t, flags=re.I)
+    t = re.sub(r"RISULTATO\s*:", "", t, flags=re.I)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t[:280]
 @app.get("/health")
 def health():
-    return {"status":"ok","agent":"Jarvis","time": datetime.utcnow().isoformat()}
+    return {"status":"ok","agent":"Jarvis","voice": ELEVEN_VOICE, "time": datetime.utcnow().isoformat()}
 @app.get("/")
 def root():
     return FileResponse("index.html") if os.path.exists("index.html") else health()
+@app.post("/api/speak")
+def api_speak(body: SpeakIn):
+    text = clean_voice(body.text)
+    if not text:
+        return Response(status_code=400)
+    payload = json.dumps({"text": text, "model_id": "eleven_multilingual_v2"}).encode()
+    req = urllib.request.Request(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVEN_VOICE}",
+        data=payload,
+        headers={"xi-api-key": ELEVEN_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=25) as r:
+            audio = r.read()
+        return Response(content=audio, media_type="audio/mpeg")
+    except Exception as e:
+        return Response(content=str(e).encode(), status_code=502)
 @app.get("/api/products/search")
 def api_search(q: str = Query("")):
     p = search_product(q)
@@ -238,7 +253,7 @@ def api_search(q: str = Query("")):
 @app.get("/api/tables")
 def api_tables():
     opened = [o for o in load_orders() if o.get("status") in ("inviato","in_preparazione","pronto")]
-    return {"aperti": [{"id": o.get("tableId"), "name": o.get("tableName"), "dest": o.get("destination"), "status": o.get("status"), "total": o.get("total"), "items": o.get("items")} for o in opened]}
+    return {"aperti": [{"id": o.get("tableId"), "name": o.get("tableName"), "dest": o.get("destination"), "status": o.get("status"), "total": o.get("total")} for o in opened]}
 @app.post("/chat")
 def chat(body: ChatIn):
     text = (body.message or "").strip()

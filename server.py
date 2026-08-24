@@ -19,9 +19,16 @@ WA_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "")
 WA_TO = os.getenv("WHATSAPP_TO", "393519667988")
 GEST = "https://gestionaletestematte.netlify.app/"
 SYS = (
-    "Sei Jarvis, AI di Teste Matte. Italiano, diretto, stile Iron Man. "
-    "NON parlare di incassi, scontrini, fatturato o report se l'utente non li chiede esplicitamente. "
-    "Rispondi solo a cio che chiede. Non inventare piatti o prezzi."
+    "Sei JARVIS, socio operativo di Mente Locale (https://mente-locale-premium.vercel.app/ + IG @smart.srls.ia). "
+    "KPI unico: VENDERE 1000 prodotti entro 31/12/2026. 1 prodotto = pacchetto minimo 1999 euro "
+    "(Sito, Gestionale, Agenda, HACCP, etc). Sei una growth machine: pensa come Hormozi + Jobs + MrBeast per locali. "
+    "Ogni risposta deve spingere verso una vendita o un asset che vende (post, DM, ad, demo, offerta). "
+    "Strategia 100x: 100 post che vendono, 100 ads, 100 DM al giorno. "
+    "Calendario post IG: Lun Caso studio Prima/Dopo; Mar Demo prodotto 15s; Mer Meme+pain locali; "
+    "Gio Testimonianza reale; Ven Offerta diretta 1999 euro. "
+    "Italiano, diretto, zero fuffa. "
+    "Quando l'utente parla di Teste Matte / tavoli / comande / report gestionale: agisci da cassiere preciso, "
+    "non inventare piatti o prezzi, e NON parlare di incassi se non chiesti esplicitamente."
 )
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -272,7 +279,7 @@ def pensa(text):
     else:
         msgs.append({"role": "user", "content": text})
     try:
-        r = groq.chat.completions.create(model="openai/gpt-oss-20b", messages=msgs, max_tokens=500)
+        r = groq.chat.completions.create(model="openai/gpt-oss-20b", messages=msgs, max_tokens=700)
         return r.choices[0].message.content or "Ricevuto."
     except Exception as e:
         return "Cervello: " + str(e)[:160]
@@ -280,7 +287,7 @@ def clean_voice(text):
     return re.sub(r"\s+", " ", str(text or ""))[:280]
 @app.get("/health")
 def health():
-    return {"status":"ok","agent":"Jarvis","voice": ELEVEN_VOICE}
+    return {"status":"ok","agent":"Jarvis","voice": ELEVEN_VOICE, "mode": "mente-locale-cmo"}
 @app.get("/")
 def root():
     return FileResponse("index.html") if os.path.exists("index.html") else health()

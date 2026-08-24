@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, os, re, time, urllib.request, urllib.parse
+import json, os, re, time, urllib.request
 from datetime import datetime, timezone
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -82,8 +82,7 @@ def load_menu():
     _cache["menu"] = menu; _cache["t"] = now
     return menu
 def norm(s):
-    s = (s or "").lower()
-    return re.sub(r"[^a-z0-9]+", " ", s).strip()
+    return re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).strip()
 def search_product(q):
     nq = norm(q)
     if not nq: return None
@@ -166,14 +165,35 @@ def build_backup():
     orders = load_orders()
     today = [o for o in orders if same_day(o.get("createdAt")) or same_day(o.get("paidAt"))]
     paid = [o for o in today if o.get("status") == "pagato" or o.get("paidAt")]
+    attesa = [o for o in orders if o.get("status") in ("inviato","in_preparazione","pronto")]
     tot = sum(float(o.get("total") or 0) for o in paid)
+    medio = (tot / len(paid)) if paid else 0.0
+    lines = []
+    for o in paid[:15]:
+        items = ", ".join(f"{i.get('qty',1)}x {i.get('name')}" for i in (o.get("items") or [])[:6])
+        lines.append(f"- {o.get('tableName') or o.get('tableId')}: {o.get('total')} euro ({items})")
+    riassunto = (
+        f"Report Teste Matte del {datetime.now().strftime('%d/%m/%Y')}.\n"
+        f"Incasso oggi: {tot:.2f} euro.\n"
+        f"Scontrini pagati: {len(paid)}.\n"
+        f"Scontrino medio: {medio:.2f} euro.\n"
+        f"Comande ancora aperte: {len(attesa)}.\n"
+        f"Ordini di oggi: {len(today)}.\n"
+    )
+    if lines:
+        riassunto += "Dettaglio scontrini:\n" + "\n".join(lines)
+    else:
+        riassunto += "Nessuno scontrino pagato registrato oggi."
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "brand": "Teste Matte",
         "incasso_oggi": round(tot, 2),
         "scontrini": len(paid),
+        "scontrino_medio": round(medio, 2),
+        "comande_aperte": len(attesa),
         "ordini_oggi": today,
         "tutti_ordini": orders,
+        "riassunto_it": riassunto,
     }
 def send_whatsapp_text(text):
     if not WA_TOKEN or not WA_PHONE_ID:
@@ -199,6 +219,9 @@ def cassiere(text):
     t = (text or "").strip(); low = t.lower()
     data = load_orders()
     if fix_stuck(data): save_orders(data)
+    if "report" in low:
+        b = build_backup()
+        return b["riassunto_it"] + "\n\nFile JSON: /api/backup (download automatico dal pannello)."
     if wants_finance(low) or ("quanto" in low and "oggi" in low):
         orders = load_orders()
         today = [o for o in orders if same_day(o.get("createdAt")) or same_day(o.get("paidAt"))]
@@ -228,7 +251,7 @@ def cassiere(text):
             p = search_product(n)
             if p: found.append(p)
             else: missing.append(n)
-        if missing: return "ERRORE: " + ", ".join(missing) + " non trovato nel gestionale. Vuoi che avviso in cucina?"
+        if missing: return "ERRORE: " + ", ".join(missing) + " non trovato nel gestionale."
         lines = []; dests = set(); tot = 0
         for p in found:
             ticket = add_item(tid, tname, p, 1)
@@ -274,15 +297,9 @@ def api_backup():
 @app.post("/api/backup/whatsapp")
 def api_backup_wa():
     b = build_backup()
-    msg = (
-        f"BACKUP TESTE MATTE {b['generated_at'][:10]}\n"
-        f"Incasso oggi: {b['incasso_oggi']} euro\n"
-        f"Scontrini: {b['scontrini']}\n"
-        f"Ordini oggi: {len(b['ordini_oggi'])}\n"
-        f"JSON completo: https://web-production-65351.up.railway.app/api/backup"
-    )
+    msg = b.get("riassunto_it", "") + "\n\nJSON: https://web-production-65351.up.railway.app/api/backup"
     wa = send_whatsapp_text(msg)
-    return {"backup": {"incasso_oggi": b["incasso_oggi"], "scontrini": b["scontrini"]}, "whatsapp": wa, "to": WA_TO}
+    return {"riassunto_it": b.get("riassunto_it"), "whatsapp": wa, "to": WA_TO}
 @app.post("/api/speak")
 def api_speak(body: SpeakIn):
     text = clean_voice(body.text)
@@ -306,5 +323,11 @@ def api_tables():
 def chat(body: ChatIn):
     text = (body.message or "").strip()
     if not text: return {"risposta": "Dimmi pure, signore."}
-    try: return {"risposta": pensa(text)}
-    except Exception as e: return {"risposta": "Errore: " + str(e)[:200]}
+    try:
+        out = {"risposta": pensa(text)}
+        if "report" in text.lower():
+            out["backup_url"] = "/api/backup"
+            out["download"] = True
+        return out
+    except Exception as e:
+        return {"risposta": "Errore: " + str(e)[:200]}

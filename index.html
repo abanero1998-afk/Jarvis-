@@ -29,6 +29,7 @@ html,body{height:100%;overflow:hidden;background:#050814;color:#d7f6ff;font-fami
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .insight{margin-top:8px;border:1px solid rgba(0,217,255,.28);background:rgba(0,217,255,.07);border-radius:16px;padding:10px;font-size:13px;white-space:pre-wrap}
 .status{font-size:10px;letter-spacing:2px;color:#00D9FF;margin-bottom:6px}
+.gen-img{width:100%;border-radius:14px;margin:8px 0;border:1px solid rgba(0,217,255,.3)}
 #chat-dock{position:absolute;left:0;right:0;bottom:0;height:82px;z-index:20;background:rgba(6,12,22,.72);backdrop-filter:blur(28px);border-top:1px solid rgba(0,217,255,.22);display:flex;align-items:center;gap:6px;padding:0 8px;transition:.4s}
 #jarvis-os.busy #chat-dock{transform:translateY(48px);opacity:.55}
 #chat-dock input{flex:1;height:44px;border-radius:999px;border:1px solid rgba(0,217,255,.2);background:#050814;color:#fff;padding:0 12px;outline:none;min-width:0}
@@ -36,12 +37,12 @@ html,body{height:100%;overflow:hidden;background:#050814;color:#d7f6ff;font-fami
 #chat-dock button.on{border-color:#00E5FF;color:#00E5FF}
 .jarvis-hud{position:absolute;inset:0;z-index:15;pointer-events:none;font-family:Orbitron,monospace;display:none}
 .jarvis-hud.show{display:block}
-.hud-win{pointer-events:auto;position:absolute;background:radial-gradient(120% 120% at 0% 0%,rgba(0,229,255,.15),rgba(5,5,8,.88) 40%);backdrop-filter:blur(18px);border:1px solid rgba(0,229,255,.5);border-radius:18px;overflow:hidden}
-.hud-header{height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:linear-gradient(90deg,rgba(0,229,255,.25),rgba(0,100,120,.12));border-bottom:1px solid rgba(0,229,255,.35);font-size:9px;letter-spacing:1.5px;color:#00E5FF}
+.hud-win{pointer-events:auto;position:absolute;background:rgba(5,5,8,.9);border:1px solid rgba(0,229,255,.5);border-radius:18px;overflow:hidden}
+.hud-header{height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:9px;letter-spacing:1.5px;color:#00E5FF;border-bottom:1px solid rgba(0,229,255,.35)}
 .hud-iframe{width:100%;height:calc(100% - 36px);border:none;background:#000}
 #hud-site{left:14px;top:78px;width:min(420px,46vw);height:min(560px,calc(100% - 170px));position:absolute}
 #hud-ig{right:14px;top:78px;width:min(420px,46vw);height:min(560px,calc(100% - 170px));position:absolute}
-#ig-images{height:calc(100% - 36px);overflow:auto;background:#050508;padding:12px;font-size:11px;color:#7fa0b5}
+#ig-images{height:calc(100% - 36px);padding:12px;font-size:11px;color:#7fa0b5}
 </style></head>
 <body>
 <div id="jarvis-os">
@@ -58,14 +59,14 @@ html,body{height:100%;overflow:hidden;background:#050814;color:#d7f6ff;font-fami
     </div>
     <div class="hud-win" id="hud-ig">
       <div class="hud-header"><span>IG @SMART.SRLS.IA</span><a href="https://www.instagram.com/smart.srls.ia" target="_blank" style="color:#00E5FF">OPEN</a></div>
-      <div id="ig-images">Instagram richiede Graph API per le foto.</div>
+      <div id="ig-images">Instagram Graph API per feed foto.</div>
     </div>
   </div>
   <div id="chat-dock">
     <button id="btnCam">CAM</button>
     <button id="btnMic">MIC</button>
     <button id="btnLive">LIVE</button>
-    <input id="chatInput" placeholder="Telecomando..." autocomplete="off">
+    <input id="chatInput" placeholder="genera post instagram..." autocomplete="off">
     <button id="btnSend">OK</button>
     <button id="btnRep">REPORT</button>
   </div>
@@ -77,21 +78,7 @@ html,body{height:100%;overflow:hidden;background:#050814;color:#d7f6ff;font-fami
   const API=location.origin, SB="https://qnpdilurpkjsqloznmko.supabase.co", KEY="sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--";
   let audioObj=null,recognition=null,listening=false,charts=[],liveOn=false;
   function frame(){const svg=d3.select("#hud-frame");svg.selectAll("*").remove();const w=innerWidth,h=innerHeight,p=14;const g=svg.attr("viewBox","0 0 "+w+" "+h).append("g").attr("stroke","#00D9FF").attr("fill","none").attr("stroke-width",1.2);const L=22;[[p,p,1,1],[w-p,p,-1,1],[p,h-p-84,1,-1],[w-p,h-p-84,-1,-1]].forEach(([x,y,sx,sy])=>{g.append("path").attr("d","M"+(x+L*sx)+","+y+" H"+x+" V"+(y+L*sy));});}
-  /* SOLO CYAN — nessun arco rosso sul nucleo */
-  function core(){
-    const svg=d3.select("#core-svg");svg.selectAll("*").remove();
-    const c=123;
-    const ring=(r,op,w,dash,dur)=>{
-      const p=svg.append("circle").attr("cx",c).attr("cy",c).attr("r",r)
-        .attr("fill","none").attr("stroke","#00E5FF").attr("stroke-width",w).attr("stroke-opacity",op);
-      if(dash) p.attr("stroke-dasharray",dash);
-      p.append("animateTransform").attr("attributeName","transform").attr("type","rotate")
-        .attr("from","0 "+c+" "+c).attr("to","360 "+c+" "+c).attr("dur",dur).attr("repeatCount","indefinite");
-    };
-    ring(96,.3,1,"","18s");
-    ring(88,.95,2,"20 12","10s");
-    ring(76,.4,1,"8 10","14s");
-  }
+  function core(){const svg=d3.select("#core-svg");svg.selectAll("*").remove();const c=123;const ring=(r,op,w,dash,dur)=>{const p=svg.append("circle").attr("cx",c).attr("cy",c).attr("r",r).attr("fill","none").attr("stroke","#00E5FF").attr("stroke-width",w).attr("stroke-opacity",op);if(dash)p.attr("stroke-dasharray",dash);p.append("animateTransform").attr("attributeName","transform").attr("type","rotate").attr("from","0 "+c+" "+c).attr("to","360 "+c+" "+c).attr("dur",dur).attr("repeatCount","indefinite");};ring(96,.3,1,"","18s");ring(88,.95,2,"20 12","10s");ring(76,.4,1,"8 10","14s");}
   addEventListener("resize",frame);frame();core();
   function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});}
   setInterval(tick,1000);tick();
@@ -99,35 +86,36 @@ html,body{height:100%;overflow:hidden;background:#050814;color:#d7f6ff;font-fami
   function busy(v){OS.classList.toggle("busy",!!v);}
   function speak(t){const line=String(t||"").replace(/\s+/g," ").slice(0,280);fetch(API+"/api/speak",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:line})}).then(r=>r.ok?r.blob():Promise.reject()).then(b=>{if(audioObj)audioObj.pause();audioObj=new Audio(URL.createObjectURL(b));audioObj.play().catch(()=>{});}).catch(()=>{try{const u=new SpeechSynthesisUtterance(line);u.lang="it-IT";speechSynthesis.speak(u);}catch(e){}});}
   function toggleLive(force){liveOn=typeof force==="boolean"?force:!liveOn;liveHud.classList.toggle("show",liveOn);document.getElementById("btnLive").classList.toggle("on",liveOn);if(liveOn){openHome();speak("Live online.");}else speak("Live chiuso.");}
-  function kind(s){s=s.toLowerCase();if(/instagram|\big\b|sito live|apri sito|live/i.test(s))return"live";if(/fattoria|agritur|orto|km0/i.test(s))return"farm";if(/come si|processo|flusso|schema|procedura/i.test(s))return"flow";if(/report|incass|vendit|scontrin|quanto|dashboard|kpi/i.test(s))return"dash";if(/aggiungi|manda|apri tavolo/i.test(s))return"ops";return"talk";}
+  function kind(s){s=s.toLowerCase();if(/genera (post|immagine|visual)|post instagram|immagine ig|crea post/i.test(s))return"img";if(/instagram|\big\b|sito live|apri sito|live/i.test(s))return"live";if(/fattoria|agritur|orto|km0/i.test(s))return"farm";if(/come si|processo|flusso|schema|procedura/i.test(s))return"flow";if(/report|incass|vendit|scontrin|quanto|dashboard|kpi/i.test(s))return"dash";if(/aggiungi|manda|apri tavolo/i.test(s))return"ops";return"talk";}
   async function orders(){const rows=await fetch(SB+"/rest/v1/tm_orders?id=eq.main&select=data",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}}).then(r=>r.json());return (rows[0]&&rows[0].data)||[];}
   function day(d){return d?new Date(d).toDateString():"";}
-  function pack(list){const t=new Date(),y=new Date();y.setDate(y.getDate()-1);const tod=list.filter(o=>day(o.createdAt)===t.toDateString()||day(o.paidAt)===t.toDateString());const yod=list.filter(o=>day(o.paidAt||o.createdAt)===y.toDateString()&&(o.status==="pagato"||o.paidAt));const paid=tod.filter(o=>o.status==="pagato"||o.paidAt);const att=list.filter(o=>["inviato","in_preparazione","pronto"].includes(o.status));const inc=paid.reduce((s,o)=>s+Number(o.total||0),0),yinc=yod.reduce((s,o)=>s+Number(o.total||0),0);const pezzi=tod.reduce((s,o)=>s+(o.items||[]).reduce((a,i)=>a+Number(i.qty||1),0),0);const hours=Array(24).fill(0);paid.forEach(o=>hours[new Date(o.paidAt||o.createdAt).getHours()]+=Number(o.total||0));const prod={};tod.forEach(o=>(o.items||[]).forEach(i=>{const n=i.name||"?";prod[n]=(prod[n]||0)+Number(i.qty||1);}));const top=Object.entries(prod).sort((a,b)=>b[1]-a[1]).slice(0,5);const occ=new Set(att.map(o=>o.tableId)).size;const dlt=(a,b)=>b?Math.round(((a-b)/b)*100):0;return{inc,dInc:dlt(inc,yinc),medio:paid.length?inc/paid.length:0,pezzi,hours,top,occ,lib:Math.max(0,28-occ),insights:[top[0]?top[0][0]+" top x"+top[0][1]:"Pochi pezzi.",att.length+" comande aperte."]};}
+  function pack(list){const t=new Date(),y=new Date();y.setDate(y.getDate()-1);const tod=list.filter(o=>day(o.createdAt)===t.toDateString()||day(o.paidAt)===t.toDateString());const yod=list.filter(o=>day(o.paidAt||o.createdAt)===y.toDateString()&&(o.status==="pagato"||o.paidAt));const paid=tod.filter(o=>o.status==="pagato"||o.paidAt);const att=list.filter(o=>["inviato","in_preparazione","pronto"].includes(o.status));const inc=paid.reduce((s,o)=>s+Number(o.total||0),0),yinc=yod.reduce((s,o)=>s+Number(o.total||0),0);const pezzi=tod.reduce((s,o)=>s+(o.items||[]).reduce((a,i)=>a+Number(i.qty||1),0),0);const hours=Array(24).fill(0);paid.forEach(o=>hours[new Date(o.paidAt||o.createdAt).getHours()]+=Number(o.total||0));const prod={};tod.forEach(o=>(o.items||[]).forEach(i=>{const n=i.name||"?";prod[n]=(prod[n]||0)+Number(i.qty||1);}));const top=Object.entries(prod).sort((a,b)=>b[1]-a[1]).slice(0,5);const occ=new Set(att.map(o=>o.tableId)).size;const dlt=(a,b)=>b?Math.round(((a-b)/b)*100):0;return{inc,dInc:dlt(inc,yinc),medio:paid.length?inc/paid.length:0,pezzi,hours,top,occ,lib:Math.max(0,28-occ)};}
   function wipe(){charts.forEach(c=>c.destroy&&c.destroy());charts=[];canvas.innerHTML="";}
-  function renderDash(d){openHome();wipe();canvas.innerHTML=`<div class="status">REPORT</div><div class="kpis"><div class="card"><span>INCASSO</span><b>${d.inc.toFixed(2)}€</b><div class="${d.dInc>=0?"up":"dn"}">${d.dInc>=0?"+":""}${d.dInc}%</div></div><div class="card"><span>SCONTRINO</span><b>${d.medio.toFixed(2)}€</b></div><div class="card"><span>PEZZI</span><b>${d.pezzi}</b></div><div class="card"><span>TAVOLI</span><b>${d.occ}/${d.occ+d.lib}</b></div></div><div class="grid2"><div class="card"><span>ORE</span><canvas id="c1" height="110"></canvas></div><div class="card"><span>TOP</span><canvas id="c2" height="110"></canvas></div></div><div class="insight" id="riassuntoBox"></div>`;charts.push(new Chart(c1,{type:"line",data:{labels:[...Array(24).keys()],datasets:[{data:d.hours,borderColor:"#00D9FF",backgroundColor:"rgba(0,217,255,.14)",fill:true,tension:.35,pointRadius:0,borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#7fa0b5",maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:"#7fa0b5"},grid:{color:"rgba(255,255,255,.05)"}}}}}));charts.push(new Chart(c2,{type:"bar",data:{labels:d.top.map(x=>x[0]),datasets:[{data:d.top.map(x=>x[1]),backgroundColor:"#00D9FF"}]},options:{indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{color:"#d7f6ff",font:{size:10}},grid:{display:false}}}}}));}
+  function renderDash(d){openHome();wipe();canvas.innerHTML=`<div class="status">REPORT</div><div class="kpis"><div class="card"><span>INCASSO</span><b>${d.inc.toFixed(2)}€</b></div><div class="card"><span>SCONTRINO</span><b>${d.medio.toFixed(2)}€</b></div><div class="card"><span>PEZZI</span><b>${d.pezzi}</b></div><div class="card"><span>TAVOLI</span><b>${d.occ}/${d.occ+d.lib}</b></div></div><div class="insight" id="riassuntoBox"></div>`;}
   async function downloadReportJson(){const b=await fetch(API+"/api/backup").then(r=>r.json());const blob=new Blob([JSON.stringify(b,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="teste-matte-report-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();return b;}
-  function renderFlow(){openHome();wipe();canvas.innerHTML=`<div class="status">FLUSSO</div><div class="card">TAVOLO → PRODOTTO → CUCINA → KDS</div>`;}
-  function renderFarm(){openHome();wipe();canvas.innerHTML=`<div class="status">FATTORIA</div><div class="kpis"><div class="card"><b>5.0</b><span>AGRITURISMO</span></div><div class="card"><b>KM0</b><span>PRODOTTI</span></div></div>`;}
   async function run(text){
     busy(true);
     const k=kind(text);
     const isReport=/report/i.test(text);
-    try{
-      if(k==="live") toggleLive(true);
-      else if(k==="farm") renderFarm();
-      else if(k==="flow") renderFlow();
-      else if(k==="dash"){renderDash(pack(await orders())); if(isReport){const b=await downloadReportJson(); const el=document.getElementById("riassuntoBox"); if(el&&b.riassunto_it) el.textContent=b.riassunto_it;}}
-      else {openHome();wipe();canvas.innerHTML=`<div class="status">HOME</div><div class="card"><b>In ascolto</b></div>`;}
-    }catch(e){openHome();wipe();canvas.innerHTML=`<div class="card">Errore HUD</div>`;}
+    openHome();
+    if(k==="live") toggleLive(true);
+    else if(k==="dash"){try{renderDash(pack(await orders())); if(isReport){const b=await downloadReportJson(); const el=document.getElementById("riassuntoBox"); if(el&&b.riassunto_it) el.textContent=b.riassunto_it;}}catch(e){wipe();canvas.innerHTML="<div class=card>Errore dati</div>";}}
+    else if(k!=="img"){wipe();canvas.innerHTML="<div class=status>HOME</div><div class=card><b>In ascolto</b></div>";}
+    else {wipe();canvas.innerHTML="<div class=status>POST IG</div><div class=card><b>Genero visual...</b></div>";}
     if(k!=="live"){
       try{
         const res=await fetch(API+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})});
         const data=await res.json();
         const reply=data.risposta||"Fatto.";
         speak(reply);
+        if(data.image_url){
+          wipe();
+          canvas.innerHTML="<div class=status>POST GENERATO</div>";
+          const im=document.createElement("img");im.className="gen-img";im.src=data.image_url;im.alt="post IG";canvas.appendChild(im);
+        }
         const box=document.createElement("div");box.className="insight";box.textContent=reply;canvas.appendChild(box);
         if(data.download&&!isReport){try{await downloadReportJson();}catch(e){}}
-      }catch(e){}
+      }catch(e){canvas.innerHTML="<div class=card>Errore rete</div>";}
     }
     busy(false);
   }

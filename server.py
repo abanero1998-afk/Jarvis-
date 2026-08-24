@@ -10,6 +10,7 @@ try:
 except ImportError:
     Groq = None
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
+XAI_API_KEY = os.getenv("XAI_API_KEY", "")
 SB_URL = os.getenv("SUPABASE_URL", "https://qnpdilurpkjsqloznmko.supabase.co")
 SB_KEY = os.getenv("SUPABASE_KEY", "sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--")
 ELEVEN_KEY = os.getenv("ELEVEN_API_KEY", "sk_daea01152c06405ec898b07cb370c332caad93f03d11f8ca")
@@ -20,15 +21,11 @@ WA_TO = os.getenv("WHATSAPP_TO", "393519667988")
 GEST = "https://gestionaletestematte.netlify.app/"
 SYS = (
     "Sei JARVIS, socio operativo di Mente Locale (https://mente-locale-premium.vercel.app/ + IG @smart.srls.ia). "
-    "KPI unico: VENDERE 1000 prodotti entro 31/12/2026. 1 prodotto = pacchetto minimo 1999 euro "
-    "(Sito, Gestionale, Agenda, HACCP, etc). Sei una growth machine: pensa come Hormozi + Jobs + MrBeast per locali. "
-    "Ogni risposta deve spingere verso una vendita o un asset che vende (post, DM, ad, demo, offerta). "
-    "Strategia 100x: 100 post che vendono, 100 ads, 100 DM al giorno. "
-    "Calendario post IG: Lun Caso studio Prima/Dopo; Mar Demo prodotto 15s; Mer Meme+pain locali; "
-    "Gio Testimonianza reale; Ven Offerta diretta 1999 euro. "
-    "Italiano, diretto, zero fuffa. "
-    "Quando l'utente parla di Teste Matte / tavoli / comande / report gestionale: agisci da cassiere preciso, "
-    "non inventare piatti o prezzi, e NON parlare di incassi se non chiesti esplicitamente."
+    "KPI unico: VENDERE 1000 prodotti entro 31/12/2026. 1 prodotto = pacchetto minimo 1999 euro. "
+    "Growth machine: post, DM, ads, offerte. Italiano, diretto. "
+    "Calendario IG: Lun caso studio; Mar demo; Mer pain; Gio testimonial; Ven offerta 1999 euro. "
+    "Se chiedono un post Instagram, proponi caption + hook + CTA su 1999 euro. "
+    "Teste Matte: cassiere preciso, no piatti inventati, no incassi se non chiesti."
 )
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -38,6 +35,9 @@ class ChatIn(BaseModel):
     message: str
 class SpeakIn(BaseModel):
     text: str = ""
+class ImageIn(BaseModel):
+    prompt: str = ""
+    theme: str = ""
 def hdr(extra=None):
     h = {"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json"}
     if extra: h.update(extra)
@@ -158,6 +158,55 @@ def wants_finance(text):
     low = (text or "").lower()
     keys = ("report", "incass", "fatturat", "scontrin", "vendit", "quanto abbiamo", "quanto ho", "dashboard", "kpi")
     return any(k in low for k in keys)
+def wants_image(text):
+    low = (text or "").lower()
+    return any(k in low for k in ("genera immagine", "genera post", "post instagram", "immagine ig", "crea post", "visual post", "grok imagine", "genera visual"))
+def ig_prompt_from(text):
+    low = (text or "").lower()
+    day = datetime.now().strftime("%A")
+    base = (
+        "Instagram square 1080x1080 post for Italian brand Mente Locale, dark cyan neon premium tech style, "
+        "readable bold Italian text, high contrast, professional social ad, no watermark. "
+    )
+    if "caso" in low or "prima" in low or day == "Monday":
+        return base + "Headline PRIMA / DOPO. Split: chaotic paper orders vs clean digital tablet. Badge CASO STUDIO. Brand Mente Locale."
+    if "demo" in low or day == "Tuesday":
+        return base + "Headline Gestionale in 3 secondi. Glowing order UI mockup. CTA da 1.999 euro."
+    if "meme" in low or "pain" in low or day == "Wednesday":
+        return base + "Funny local business pain: fridge +10 and ASL inspection. Meme style dark cyan. Brand Mente Locale."
+    if "testimon" in low or day == "Thursday":
+        return base + "Testimonial style card, 5 stars, quote about saving hours with software. Brand Mente Locale."
+    if "offerta" in low or "1999" in low or day == "Friday":
+        return base + "Direct offer: Pacchetto completo da 1.999 euro. Sito + Gestionale + Agenda + HACCP. Strong CTA."
+    extra = re.sub(r"genera (immagine|post|visual)|post instagram|immagine ig|crea post", "", text, flags=re.I).strip()
+    return base + (extra or "Mente Locale growth post, sell 1999 euro package to local businesses.")
+def generate_image(prompt):
+    if not XAI_API_KEY:
+        return {"ok": False, "error": "Manca XAI_API_KEY su Railway. Chiave su https://console.x.ai/ — Groq non genera immagini."}
+    payload = json.dumps({
+        "model": "grok-imagine-image-2.0",
+        "prompt": prompt[:2000],
+        "n": 1,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.x.ai/v1/images/generations",
+        data=payload,
+        headers={"Authorization": "Bearer " + XAI_API_KEY, "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.loads(r.read().decode())
+        url = None
+        if isinstance(data.get("data"), list) and data["data"]:
+            item = data["data"][0]
+            url = item.get("url") or item.get("image_url")
+            if not url and item.get("b64_json"):
+                url = "data:image/png;base64," + item["b64_json"]
+        return {"ok": bool(url), "url": url, "raw_keys": list(data.keys())}
+    except Exception as e:
+        err = e.read().decode() if hasattr(e, "read") else str(e)
+        return {"ok": False, "error": err[:400]}
 def snapshot():
     try:
         orders = load_orders()
@@ -181,16 +230,10 @@ def build_backup():
         lines.append(f"- {o.get('tableName') or o.get('tableId')}: {o.get('total')} euro ({items})")
     riassunto = (
         f"Report Teste Matte del {datetime.now().strftime('%d/%m/%Y')}.\n"
-        f"Incasso oggi: {tot:.2f} euro.\n"
-        f"Scontrini pagati: {len(paid)}.\n"
-        f"Scontrino medio: {medio:.2f} euro.\n"
-        f"Comande ancora aperte: {len(attesa)}.\n"
-        f"Ordini di oggi: {len(today)}.\n"
+        f"Incasso oggi: {tot:.2f} euro.\nScontrini: {len(paid)}. Medio: {medio:.2f}. Aperte: {len(attesa)}."
     )
     if lines:
-        riassunto += "Dettaglio scontrini:\n" + "\n".join(lines)
-    else:
-        riassunto += "Nessuno scontrino pagato registrato oggi."
+        riassunto += "\n" + "\n".join(lines)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "brand": "Teste Matte",
@@ -204,18 +247,10 @@ def build_backup():
     }
 def send_whatsapp_text(text):
     if not WA_TOKEN or not WA_PHONE_ID:
-        return {"ok": False, "error": "Mancano WHATSAPP_TOKEN e WHATSAPP_PHONE_ID su Railway"}
+        return {"ok": False, "error": "Mancano WHATSAPP_TOKEN e WHATSAPP_PHONE_ID"}
     url = f"https://graph.facebook.com/v18.0/{WA_PHONE_ID}/messages"
-    payload = json.dumps({
-        "messaging_product": "whatsapp",
-        "to": WA_TO.replace("+", "").replace(" ", ""),
-        "type": "text",
-        "text": {"body": text[:4000]},
-    }).encode()
-    req = urllib.request.Request(url, data=payload, headers={
-        "Authorization": "Bearer " + WA_TOKEN,
-        "Content-Type": "application/json",
-    })
+    payload = json.dumps({"messaging_product": "whatsapp", "to": WA_TO.replace("+", "").replace(" ", ""), "type": "text", "text": {"body": text[:4000]}}).encode()
+    req = urllib.request.Request(url, data=payload, headers={"Authorization": "Bearer " + WA_TOKEN, "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             return {"ok": True, "resp": json.loads(r.read().decode())}
@@ -228,7 +263,7 @@ def cassiere(text):
     if fix_stuck(data): save_orders(data)
     if "report" in low:
         b = build_backup()
-        return b["riassunto_it"] + "\n\nFile JSON: /api/backup (download automatico dal pannello)."
+        return b["riassunto_it"] + "\n\nFile JSON: /api/backup"
     if wants_finance(low) or ("quanto" in low and "oggi" in low):
         orders = load_orders()
         today = [o for o in orders if same_day(o.get("createdAt")) or same_day(o.get("paidAt"))]
@@ -247,7 +282,7 @@ def cassiere(text):
     if want_open and tid and not re.search(r"aggiungi .+\s+(al\s+)?tavolo", low):
         only_table = not re.search(r"aggiungi\s+(?!tavolo)([a-z].+)", low)
         if only_table or low.startswith("apri") or low.startswith("aggiungi tavolo"):
-            return f"Tavolo {tname} pronto. Dimmi i prodotti da inviare in cucina o al bar."
+            return f"Tavolo {tname} pronto. Dimmi i prodotti."
     if want_add and tid:
         phrase = re.sub(r"aggiungi\s+tavolo\s+\d+,?\s*", "", t, flags=re.I)
         phrase = re.sub(r"\b(al\s+)?tavolo\s*\d+\b", "", phrase, flags=re.I)
@@ -264,15 +299,27 @@ def cassiere(text):
             ticket = add_item(tid, tname, p, 1)
             dests.add(ticket.get("destination"))
             tot += float(p["price"])
-            lines.append(f"1x {p['name']} ({p['price']:.2f} euro) verso {dest_of(p)}")
+            lines.append(f"1x {p['name']} ({p['price']:.2f} euro)")
         return f"Inviato a {' e '.join(sorted(dests))}. Tavolo {tname}: " + ", ".join(lines) + f". Totale: {tot:.2f} euro"
     if want_open and tid: return f"Tavolo {tname} pronto. Dimmi i prodotti."
     return None
 def pensa(text):
     c = cassiere(text)
-    if c: return c
+    if c: return c, None
+    if wants_image(text):
+        prompt = ig_prompt_from(text)
+        img = generate_image(prompt)
+        if img.get("ok"):
+            caption = (
+                "Post Instagram pronto.\n"
+                "Hook: il tuo locale merita ordine, non caos.\n"
+                "CTA: pacchetto Mente Locale da 1.999 euro — sito, gestionale, agenda, HACCP.\n"
+                "Pubblica e link in bio: https://mente-locale-premium.vercel.app/"
+            )
+            return caption, img.get("url")
+        return "Immagine non generata: " + str(img.get("error") or "errore xAI"), None
     if not groq:
-        return "Ricevuto."
+        return "Ricevuto.", None
     msgs = [{"role": "system", "content": SYS}]
     if wants_finance(text):
         msgs.append({"role": "user", "content": "[Gestionale]\n" + snapshot() + "\n\n[Richiesta]\n" + text})
@@ -280,14 +327,14 @@ def pensa(text):
         msgs.append({"role": "user", "content": text})
     try:
         r = groq.chat.completions.create(model="openai/gpt-oss-20b", messages=msgs, max_tokens=700)
-        return r.choices[0].message.content or "Ricevuto."
+        return (r.choices[0].message.content or "Ricevuto."), None
     except Exception as e:
-        return "Cervello: " + str(e)[:160]
+        return "Cervello: " + str(e)[:160], None
 def clean_voice(text):
     return re.sub(r"\s+", " ", str(text or ""))[:280]
 @app.get("/health")
 def health():
-    return {"status":"ok","agent":"Jarvis","voice": ELEVEN_VOICE, "mode": "mente-locale-cmo"}
+    return {"status":"ok","agent":"Jarvis","image": bool(XAI_API_KEY), "mode": "mente-locale-cmo"}
 @app.get("/")
 def root():
     return FileResponse("index.html") if os.path.exists("index.html") else health()
@@ -304,9 +351,12 @@ def api_backup():
 @app.post("/api/backup/whatsapp")
 def api_backup_wa():
     b = build_backup()
-    msg = b.get("riassunto_it", "") + "\n\nJSON: https://web-production-65351.up.railway.app/api/backup"
-    wa = send_whatsapp_text(msg)
-    return {"riassunto_it": b.get("riassunto_it"), "whatsapp": wa, "to": WA_TO}
+    wa = send_whatsapp_text(b.get("riassunto_it", "") + "\nJSON: https://web-production-65351.up.railway.app/api/backup")
+    return {"riassunto_it": b.get("riassunto_it"), "whatsapp": wa}
+@app.post("/api/image")
+def api_image(body: ImageIn):
+    prompt = body.prompt.strip() or ig_prompt_from(body.theme or "post instagram")
+    return generate_image(prompt)
 @app.post("/api/speak")
 def api_speak(body: SpeakIn):
     text = clean_voice(body.text)
@@ -331,7 +381,10 @@ def chat(body: ChatIn):
     text = (body.message or "").strip()
     if not text: return {"risposta": "Dimmi pure, signore."}
     try:
-        out = {"risposta": pensa(text)}
+        risposta, image_url = pensa(text)
+        out = {"risposta": risposta}
+        if image_url:
+            out["image_url"] = image_url
         if "report" in text.lower():
             out["backup_url"] = "/api/backup"
             out["download"] = True

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import json, os, re, time, urllib.request
+import json, os, re, time, urllib.request, urllib.parse
 from datetime import datetime, timezone
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, JSONResponse
 from pydantic import BaseModel
 try:
     from groq import Groq
@@ -14,8 +14,15 @@ SB_URL = os.getenv("SUPABASE_URL", "https://qnpdilurpkjsqloznmko.supabase.co")
 SB_KEY = os.getenv("SUPABASE_KEY", "sb_publishable_VbIkIFYgrPzic5nXJXISZw_Q9LIhN--")
 ELEVEN_KEY = os.getenv("ELEVEN_API_KEY", "sk_daea01152c06405ec898b07cb370c332caad93f03d11f8ca")
 ELEVEN_VOICE = os.getenv("ELEVEN_VOICE_ID", "tkjyl8Joo8r3RALgNJDV")
+WA_TOKEN = os.getenv("WHATSAPP_TOKEN", "")
+WA_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "")
+WA_TO = os.getenv("WHATSAPP_TO", "393519667988")
 GEST = "https://gestionaletestematte.netlify.app/"
-SYS = "Sei Jarvis, AI personale di Teste Matte. Italiano, diretto, stile Iron Man. Cassiere sul gestionale, assistente su tutto. Non inventare piatti o prezzi."
+SYS = (
+    "Sei Jarvis, AI di Teste Matte. Italiano, diretto, stile Iron Man. "
+    "NON parlare di incassi, scontrini, fatturato o report se l'utente non li chiede esplicitamente. "
+    "Rispondi solo a cio che chiede. Non inventare piatti o prezzi."
+)
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 groq = Groq(api_key=GROQ_API_KEY) if Groq and GROQ_API_KEY else None
@@ -76,7 +83,6 @@ def load_menu():
     return menu
 def norm(s):
     s = (s or "").lower()
-    s = s.replace("a","a")
     return re.sub(r"[^a-z0-9]+", " ", s).strip()
 def search_product(q):
     nq = norm(q)
@@ -142,6 +148,10 @@ def split_products(chunk):
         p = re.sub(r"^(aggiungi|metti|manda|invia|apri)\s+", "", p.strip(), flags=re.I).strip(" .")
         if p: out.append(p)
     return out
+def wants_finance(text):
+    low = (text or "").lower()
+    keys = ("report", "incass", "fatturat", "scontrin", "vendit", "quanto abbiamo", "quanto ho", "dashboard", "kpi")
+    return any(k in low for k in keys)
 def snapshot():
     try:
         orders = load_orders()
@@ -150,13 +160,46 @@ def snapshot():
         attesa = [o for o in orders if o.get("status") in ("inviato","in_preparazione","pronto")]
         tot = sum(float(o.get("total") or 0) for o in paid)
         return f"Incasso oggi {tot:.2f} euro, {len(paid)} scontrini. Comande aperte {len(attesa)}."
-    except Exception as e:
+    except Exception:
         return "Gestionale non letto."
+def build_backup():
+    orders = load_orders()
+    today = [o for o in orders if same_day(o.get("createdAt")) or same_day(o.get("paidAt"))]
+    paid = [o for o in today if o.get("status") == "pagato" or o.get("paidAt")]
+    tot = sum(float(o.get("total") or 0) for o in paid)
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "brand": "Teste Matte",
+        "incasso_oggi": round(tot, 2),
+        "scontrini": len(paid),
+        "ordini_oggi": today,
+        "tutti_ordini": orders,
+    }
+def send_whatsapp_text(text):
+    if not WA_TOKEN or not WA_PHONE_ID:
+        return {"ok": False, "error": "Mancano WHATSAPP_TOKEN e WHATSAPP_PHONE_ID su Railway"}
+    url = f"https://graph.facebook.com/v18.0/{WA_PHONE_ID}/messages"
+    payload = json.dumps({
+        "messaging_product": "whatsapp",
+        "to": WA_TO.replace("+", "").replace(" ", ""),
+        "type": "text",
+        "text": {"body": text[:4000]},
+    }).encode()
+    req = urllib.request.Request(url, data=payload, headers={
+        "Authorization": "Bearer " + WA_TOKEN,
+        "Content-Type": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return {"ok": True, "resp": json.loads(r.read().decode())}
+    except Exception as e:
+        err = e.read().decode() if hasattr(e, "read") else str(e)
+        return {"ok": False, "error": err[:300]}
 def cassiere(text):
     t = (text or "").strip(); low = t.lower()
     data = load_orders()
     if fix_stuck(data): save_orders(data)
-    if any(k in low for k in ("incass", "fatturat")) or ("quanto" in low and "oggi" in low):
+    if wants_finance(low) or ("quanto" in low and "oggi" in low):
         orders = load_orders()
         today = [o for o in orders if same_day(o.get("createdAt")) or same_day(o.get("paidAt"))]
         paid = [o for o in today if o.get("status") == "pagato" or o.get("paidAt")]
@@ -198,16 +241,20 @@ def cassiere(text):
 def pensa(text):
     c = cassiere(text)
     if c: return c
-    ctx = snapshot()
-    if not groq: return "Ricevuto. " + ctx
+    if not groq:
+        return "Ricevuto."
+    msgs = [{"role": "system", "content": SYS}]
+    if wants_finance(text):
+        msgs.append({"role": "user", "content": "[Gestionale]\n" + snapshot() + "\n\n[Richiesta]\n" + text})
+    else:
+        msgs.append({"role": "user", "content": text})
     try:
-        r = groq.chat.completions.create(model="openai/gpt-oss-20b", messages=[{"role":"system","content": SYS},{"role":"user","content": "[Gestionale]\n" + ctx + "\n\n[Richiesta]\n" + text}], max_tokens=500)
-        return r.choices[0].message.content or ("Ricevuto. " + ctx)
+        r = groq.chat.completions.create(model="openai/gpt-oss-20b", messages=msgs, max_tokens=500)
+        return r.choices[0].message.content or "Ricevuto."
     except Exception as e:
-        return "Cervello: " + str(e)[:160] + " | " + ctx
+        return "Cervello: " + str(e)[:160]
 def clean_voice(text):
-    t = re.sub(r"\s+", " ", str(text or ""))
-    return t[:280]
+    return re.sub(r"\s+", " ", str(text or ""))[:280]
 @app.get("/health")
 def health():
     return {"status":"ok","agent":"Jarvis","voice": ELEVEN_VOICE}
@@ -221,6 +268,21 @@ def report_page():
 @app.get("/report.html")
 def report_page_html():
     return report_page()
+@app.get("/api/backup")
+def api_backup():
+    return JSONResponse(build_backup())
+@app.post("/api/backup/whatsapp")
+def api_backup_wa():
+    b = build_backup()
+    msg = (
+        f"BACKUP TESTE MATTE {b['generated_at'][:10]}\n"
+        f"Incasso oggi: {b['incasso_oggi']} euro\n"
+        f"Scontrini: {b['scontrini']}\n"
+        f"Ordini oggi: {len(b['ordini_oggi'])}\n"
+        f"JSON completo: https://web-production-65351.up.railway.app/api/backup"
+    )
+    wa = send_whatsapp_text(msg)
+    return {"backup": {"incasso_oggi": b["incasso_oggi"], "scontrini": b["scontrini"]}, "whatsapp": wa, "to": WA_TO}
 @app.post("/api/speak")
 def api_speak(body: SpeakIn):
     text = clean_voice(body.text)
